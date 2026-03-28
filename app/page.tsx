@@ -45,6 +45,9 @@ export default async function HomePage({
               Sign in if you already have an account, or create one below. New signups should look for a confirmation
               email from Supabase for now.
             </p>
+            <p className="muted">
+              If no confirmation email arrives, check your Supabase email confirmation settings and SMTP configuration.
+            </p>
           </div>
         </div>
 

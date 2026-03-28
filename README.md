@@ -21,6 +21,9 @@ Still mocked or not done yet:
 - Real message storage and folder sync
 - RLS policies and hardening pass
 
+Operational tooling now:
+- DB-backed app error logging via `public.app_error_logs`
+
 ## Docs
 
 - Schema reference: [`docs/schema.md`](D:/_work/03%20SRC/luminmail/docs/schema.md)

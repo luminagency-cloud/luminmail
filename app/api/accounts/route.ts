@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAppUser } from "@/lib/server/auth";
 import { AccountStoreError, createAccount, listAccounts } from "@/lib/server/account-store";
+import { logAppEvent } from "@/lib/server/error-log";
 
 export async function GET() {
   try {
@@ -8,6 +9,11 @@ export async function GET() {
     return NextResponse.json({ accounts: await listAccounts(appUser.id) });
   } catch (error) {
     console.error("GET /api/accounts failed", error);
+    await logAppEvent({
+      scope: "accounts.list",
+      message: error instanceof Error ? error.message : "Unable to load accounts",
+      details: { error }
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to load accounts" },
       { status: error instanceof AccountStoreError ? error.status : 500 }
@@ -16,8 +22,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { appUser } = await requireAppUser();
-
   const payload = (await request.json()) as {
     name?: string;
     email?: string;
@@ -41,6 +45,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { appUser } = await requireAppUser();
     const account = await createAccount(appUser.id, {
       name: payload.name,
       email: payload.email,
@@ -58,6 +63,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ account }, { status: 201 });
   } catch (error) {
     console.error("POST /api/accounts failed", error);
+    await logAppEvent({
+      scope: "accounts.create",
+      message: error instanceof Error ? error.message : "Unable to create account",
+      authUserId: null,
+      appUserId: null,
+      details: { payload, error }
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to create account" },
       { status: error instanceof AccountStoreError ? error.status : 500 }

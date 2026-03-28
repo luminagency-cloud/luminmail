@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAppUser } from "@/lib/server/auth";
 import { AccountStoreError, getAccount, updateAccount } from "@/lib/server/account-store";
+import { logAppEvent } from "@/lib/server/error-log";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -18,8 +19,6 @@ export async function GET(_: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
-  const { appUser } = await requireAppUser();
-
   const { id } = await context.params;
   const payload = (await request.json()) as {
     name?: string;
@@ -47,6 +46,7 @@ export async function PATCH(request: Request, context: Context) {
   }
 
   try {
+    const { appUser } = await requireAppUser();
     const account = await updateAccount(appUser.id, id, payload);
     if (!account) {
       return NextResponse.json({ error: "Account not found or is managed by env" }, { status: 404 });
@@ -55,6 +55,13 @@ export async function PATCH(request: Request, context: Context) {
     return NextResponse.json({ account });
   } catch (error) {
     console.error(`PATCH /api/accounts/${id} failed`, error);
+    await logAppEvent({
+      scope: "accounts.update",
+      message: error instanceof Error ? error.message : "Unable to update account",
+      authUserId: null,
+      appUserId: null,
+      details: { accountId: id, payload, error }
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to update account" },
       { status: error instanceof AccountStoreError ? error.status : 500 }

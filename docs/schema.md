@@ -135,6 +135,24 @@ Important columns:
 - `status`
 - `error_message`
 
+### `public.app_error_logs`
+
+Simple persistent application logging for debugging.
+
+Important columns:
+- `id`
+- `auth_user_id`
+- `app_user_id`
+- `scope`
+- `level`
+- `message`
+- `details`
+- `created_at`
+
+Notes:
+- This is intended for operational debugging while the product is still early.
+- It stores structured error/event records you can inspect directly in the database.
+
 ## Triggers and functions
 
 ### `public.set_updated_at()`

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAppUrl } from "@/lib/server/app-url";
+import { logAppEvent } from "@/lib/server/error-log";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function signInAction(formData: FormData) {
@@ -13,6 +14,12 @@ export async function signInAction(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    await logAppEvent({
+      scope: "auth.sign_in",
+      message: error.message,
+      level: "warn",
+      details: { email, code: error.code, status: error.status }
+    });
     redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
   }
 
@@ -26,7 +33,7 @@ export async function signUpAction(formData: FormData) {
   const appUrl = await getAppUrl();
 
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -35,7 +42,17 @@ export async function signUpAction(formData: FormData) {
   });
 
   if (error) {
+    await logAppEvent({
+      scope: "auth.sign_up",
+      message: error.message,
+      level: "warn",
+      details: { email, code: error.code, status: error.status }
+    });
     redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+  }
+
+  if (data.session) {
+    redirect(next || "/inbox");
   }
 
   redirect(
@@ -45,6 +62,18 @@ export async function signUpAction(formData: FormData) {
 
 export async function signOutAction() {
   const supabase = await getSupabaseServerClient();
-  await supabase.auth.signOut();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    await logAppEvent({
+      scope: "auth.sign_out",
+      message: error.message,
+      level: "warn",
+      authUserId: user?.id ?? null
+    });
+  }
   redirect("/");
 }

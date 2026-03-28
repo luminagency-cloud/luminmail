@@ -47,6 +47,12 @@ Not implemented yet:
 3. HTML sanitization
 4. Audit logging, rate limits, and provider-specific retry logic
 
+### Future auth/email follow-up
+1. Decide whether auth emails remain Supabase-managed or move to a custom delivery flow
+2. If staying on Supabase Auth, configure branded templates and production SMTP for auth emails
+3. If taking over the flow, separate auth email delivery from mailbox SMTP delivery explicitly
+4. Keep mailbox send/reply infrastructure independent from signup/login email handling
+
 ## Handoff notes for the next session
 
 ### What to trust in the repo
