@@ -1,9 +1,10 @@
 body {
   margin: 0;
   font-family: "Segoe UI", sans-serif;
+  color-scheme: dark;
   background:
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 28%),
-    linear-gradient(180deg, #07111f 0%, #0d1726 100%);
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.08), transparent 26%),
+    linear-gradient(180deg, #030712 0%, #08111d 52%, #0b1220 100%);
   color: #e2e8f0;
 }
 
@@ -205,12 +206,26 @@ input:disabled {
 }
 
 .authCard {
-  width: min(100%, 460px);
+  width: min(100%, 980px);
   border: 1px solid rgba(71, 85, 105, 0.5);
-  background: rgba(11, 18, 32, 0.82);
+  background: rgba(5, 10, 20, 0.92);
   backdrop-filter: blur(16px);
+  border-radius: 28px;
+  padding: 1.75rem;
+  box-shadow: 0 24px 80px rgba(2, 8, 23, 0.45);
+}
+
+.authGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.authPanel {
+  border: 1px solid rgba(71, 85, 105, 0.42);
+  background: rgba(9, 15, 28, 0.9);
   border-radius: 22px;
-  padding: 1.5rem;
+  padding: 1.25rem;
 }
 
 .errorBanner,
@@ -240,7 +255,8 @@ input:disabled {
 
   .topbar,
   .grid,
-  .formGrid {
+  .formGrid,
+  .authGrid {
     grid-template-columns: 1fr;
   }
 

@@ -14,6 +14,32 @@ type MailAccountRow = {
   encrypted_secret: string | null;
 };
 
+export class AccountStoreError extends Error {
+  status: number;
+
+  constructor(message: string, status = 500) {
+    super(message);
+    this.name = "AccountStoreError";
+    this.status = status;
+  }
+}
+
+function mapSupabaseError(action: string, error: { message: string; code?: string | null }) {
+  if (error.code === "23505") {
+    return new AccountStoreError("That email address is already attached to one of your accounts.", 409);
+  }
+
+  if (error.code === "23503") {
+    return new AccountStoreError("Your login session is out of sync with the database. Please sign out and sign back in.", 409);
+  }
+
+  if (error.code === "42P01") {
+    return new AccountStoreError("The mail_accounts table is missing in Supabase. Re-run the latest schema.", 500);
+  }
+
+  return new AccountStoreError(`Unable to ${action}: ${error.message}`, 500);
+}
+
 function mapRowToAccount(row: MailAccountRow): MailAccount {
   return {
     id: row.id,
@@ -46,7 +72,7 @@ export async function listAccounts(userId: string): Promise<MailAccount[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(`Unable to list accounts: ${error.message}`);
+    throw mapSupabaseError("list accounts", error);
   }
 
   return mergeEnvAccount((data ?? []).map((row) => mapRowToAccount(row as MailAccountRow)));
@@ -71,7 +97,7 @@ export async function getAccount(userId: string, id: string): Promise<MailAccoun
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Unable to load account: ${error.message}`);
+    throw mapSupabaseError("load account", error);
   }
 
   return data ? mapRowToAccount(data as MailAccountRow) : undefined;
@@ -118,7 +144,7 @@ export async function createAccount(
     .single();
 
   if (error) {
-    throw new Error(`Unable to create account: ${error.message}`);
+    throw mapSupabaseError("create account", error);
   }
 
   const account = mapRowToAccount(data as MailAccountRow);
@@ -173,7 +199,7 @@ export async function updateAccount(
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Unable to update account: ${error.message}`);
+    throw mapSupabaseError("update account", error);
   }
 
   if (!data) {

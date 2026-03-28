@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getAppUrl } from "@/lib/server/app-url";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function signInAction(formData: FormData) {
@@ -22,15 +23,24 @@ export async function signUpAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/inbox");
+  const appUrl = await getAppUrl();
 
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${appUrl}/login`
+    }
+  });
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
   }
 
-  redirect(`/login?message=${encodeURIComponent("Account created. Sign in to continue.")}&next=${encodeURIComponent(next)}`);
+  redirect(
+    `/login?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase, then sign in.")}&next=${encodeURIComponent(next)}`
+  );
 }
 
 export async function signOutAction() {

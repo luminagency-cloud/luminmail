@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { getAccount, updateAccount } from "@/lib/server/account-store";
+import { AccountStoreError, getAccount, updateAccount } from "@/lib/server/account-store";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -60,9 +60,10 @@ export async function PATCH(request: Request, context: Context) {
 
     return NextResponse.json({ account });
   } catch (error) {
+    console.error(`PATCH /api/accounts/${id} failed`, error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to update account" },
-      { status: 500 }
+      { status: error instanceof AccountStoreError ? error.status : 500 }
     );
   }
 }

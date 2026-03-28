@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { createAccount, listAccounts } from "@/lib/server/account-store";
+import { AccountStoreError, createAccount, listAccounts } from "@/lib/server/account-store";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -56,9 +56,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ account }, { status: 201 });
   } catch (error) {
+    console.error("POST /api/accounts failed", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to create account" },
-      { status: 500 }
+      { status: error instanceof AccountStoreError ? error.status : 500 }
     );
   }
 }

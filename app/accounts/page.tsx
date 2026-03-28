@@ -30,13 +30,20 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<MailAccount[]>([]);
   const [draft, setDraft] = useState<AccountDraft>(emptyDraft);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [pageMessage, setPageMessage] = useState<string | null>(null);
 
   async function loadAccounts() {
     const res = await fetch("/api/accounts");
-    if (!res.ok) return;
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({ error: "Unable to load accounts" }))) as { error?: string };
+      setPageError(payload.error ?? "Unable to load accounts.");
+      return;
+    }
 
     const payload = (await res.json()) as AccountsResponse;
     setAccounts(payload.accounts);
+    setPageError(null);
   }
 
   useEffect(() => {
@@ -45,6 +52,8 @@ export default function AccountsPage() {
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPageError(null);
+    setPageMessage(null);
 
     const res = await fetch("/api/accounts", {
       method: "POST",
@@ -60,13 +69,20 @@ export default function AccountsPage() {
       })
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({ error: "Unable to create account" }))) as { error?: string };
+      setPageError(payload.error ?? "Unable to create account.");
+      return;
+    }
 
     setDraft(emptyDraft);
+    setPageMessage("Account saved.");
     await loadAccounts();
   }
 
   async function saveAccount(account: AccountDraft & { id: string }) {
+    setPageError(null);
+    setPageMessage(null);
     setSavingId(account.id);
     const res = await fetch(`/api/accounts/${account.id}`, {
       method: "PATCH",
@@ -82,7 +98,12 @@ export default function AccountsPage() {
       })
     });
     setSavingId(null);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({ error: "Unable to update account" }))) as { error?: string };
+      setPageError(payload.error ?? "Unable to update account.");
+      return;
+    }
+    setPageMessage("Account updated.");
     await loadAccounts();
   }
 
@@ -103,6 +124,8 @@ export default function AccountsPage() {
 
       <section className="panel">
         <h2>Add account</h2>
+        {pageError ? <p className="errorBanner">{pageError}</p> : null}
+        {pageMessage ? <p className="successBanner">{pageMessage}</p> : null}
         <form className="formGrid" onSubmit={createAccount}>
           <div className="stack-sm">
             <label className="fieldLabel" htmlFor="new-account-name">
