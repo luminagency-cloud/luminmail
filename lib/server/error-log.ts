@@ -30,7 +30,34 @@ function serializeDetails(details?: Record<string, unknown>) {
   );
 }
 
+function writeRuntimeLog(input: ErrorLogInput, serializedDetails: Record<string, unknown> | null) {
+  const payload = {
+    scope: input.scope,
+    level: input.level ?? "error",
+    message: input.message,
+    authUserId: input.authUserId ?? null,
+    appUserId: input.appUserId ?? null,
+    details: serializedDetails
+  };
+
+  const line = `[app:${payload.level}] ${payload.scope}: ${payload.message}`;
+  if (payload.level === "info") {
+    console.info(line, payload);
+    return;
+  }
+
+  if (payload.level === "warn") {
+    console.warn(line, payload);
+    return;
+  }
+
+  console.error(line, payload);
+}
+
 export async function logAppEvent(input: ErrorLogInput) {
+  const serializedDetails = serializeDetails(input.details);
+  writeRuntimeLog(input, serializedDetails);
+
   if (!hasSupabaseServiceEnv()) {
     return;
   }
@@ -43,9 +70,13 @@ export async function logAppEvent(input: ErrorLogInput) {
       message: input.message,
       auth_user_id: input.authUserId ?? null,
       app_user_id: input.appUserId ?? null,
-      details: serializeDetails(input.details)
+      details: serializedDetails
     });
   } catch (error) {
-    console.error("Unable to persist app log", error);
+    console.error("[app:error] logging.persist_failed", {
+      scope: input.scope,
+      message: input.message,
+      persistError: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error
+    });
   }
 }
