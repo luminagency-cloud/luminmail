@@ -1,19 +1,112 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { signInAction, signUpAction } from "@/app/login/actions";
 import { getCurrentUser } from "@/lib/server/auth";
+import { hasSupabasePublicEnv } from "@/lib/supabase/env";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
+}) {
+  if (!hasSupabasePublicEnv()) {
+    return (
+      <main className="container stack-lg">
+        <section className="panel">
+          <h1>Supabase env missing</h1>
+          <p>Add the Supabase project URL and keys to `.env.local` before using auth.</p>
+        </section>
+      </main>
+    );
+  }
+
   const user = await getCurrentUser();
+  if (user) {
+    redirect("/inbox");
+  }
+
+  const params = await searchParams;
+  const next = params.next ?? "/inbox";
 
   return (
-    <main className="container stack-lg">
-      <h1>LuminMail</h1>
-      <p>Minimal web email client prototype with Supabase auth, account switching, and a DB-backed account model.</p>
-      <p>
-        <Link href={user ? "/inbox" : "/login"}>{user ? "Open inbox →" : "Sign in →"}</Link>
-      </p>
-      <p>
-        <Link href="/accounts">Manage accounts →</Link>
-      </p>
+    <main className="container authShell">
+      <section className="authCard stack-lg">
+        <div className="heroIntro stack-md">
+          <div className="stack-sm">
+            <p className="eyebrow">LuminMail</p>
+            <h1>Simple email for people who hate webmail</h1>
+            <p className="heroText">
+              A cleaner personal email manager for people who are tired of clunky browser inboxes and bloated webmail
+              UIs.
+            </p>
+          </div>
+          <div className="heroMeta">
+            <p className="muted">
+              Sign in if you already have an account, or create one below. New signups should look for a confirmation
+              email from Supabase for now.
+            </p>
+          </div>
+        </div>
+
+        {params.error ? <p className="errorBanner">{params.error}</p> : null}
+        {params.message ? <p className="successBanner">{params.message}</p> : null}
+
+        <div className="authGrid">
+          <form action={signInAction} className="authPanel stack-md">
+            <input name="next" type="hidden" value={next} />
+            <div className="stack-sm">
+              <p className="eyebrow">Existing account</p>
+              <h2>Sign in</h2>
+              <p className="muted">Use your email and password to get back to your inboxes.</p>
+            </div>
+            <div className="stack-sm">
+              <label className="fieldLabel" htmlFor="sign-in-email">
+                Email
+              </label>
+              <input id="sign-in-email" name="email" required type="email" />
+            </div>
+            <div className="stack-sm">
+              <label className="fieldLabel" htmlFor="sign-in-password">
+                Password
+              </label>
+              <input id="sign-in-password" name="password" required type="password" />
+            </div>
+            <button type="submit">Sign in</button>
+          </form>
+
+          <form action={signUpAction} className="authPanel stack-md">
+            <input name="next" type="hidden" value={next} />
+            <div className="stack-sm">
+              <p className="eyebrow">New account</p>
+              <h2>Sign up</h2>
+              <p className="muted">Create your account, then watch for a confirmation email from Supabase.</p>
+            </div>
+            <div className="stack-sm">
+              <label className="fieldLabel" htmlFor="sign-up-email">
+                Email
+              </label>
+              <input id="sign-up-email" name="email" required type="email" />
+            </div>
+            <div className="stack-sm">
+              <label className="fieldLabel" htmlFor="sign-up-password">
+                Password
+              </label>
+              <input id="sign-up-password" minLength={8} name="password" required type="password" />
+            </div>
+            <button className="secondaryButton" type="submit">
+              Sign up
+            </button>
+          </form>
+        </div>
+
+        <p className="muted">
+          Account records are stored in Supabase right now. Message sync and sending are still being wired up behind
+          this shell.
+        </p>
+        <p>
+          <Link href="/api/health">Health check</Link>
+        </p>
+      </section>
     </main>
   );
 }

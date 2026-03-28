@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/server/auth";
+import { requireAppUser } from "@/lib/server/auth";
 import { AccountStoreError, createAccount, listAccounts } from "@/lib/server/account-store";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const { appUser } = await requireAppUser();
+    return NextResponse.json({ accounts: await listAccounts(appUser.id) });
+  } catch (error) {
+    console.error("GET /api/accounts failed", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to load accounts" },
+      { status: error instanceof AccountStoreError ? error.status : 500 }
+    );
   }
-
-  return NextResponse.json({ accounts: await listAccounts(user.id) });
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { appUser } = await requireAppUser();
 
   const payload = (await request.json()) as {
     name?: string;
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const account = await createAccount(user.id, {
+    const account = await createAccount(appUser.id, {
       name: payload.name,
       email: payload.email,
       imapHost: payload.imapHost,

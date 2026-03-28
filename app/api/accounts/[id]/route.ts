@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/server/auth";
+import { requireAppUser } from "@/lib/server/auth";
 import { AccountStoreError, getAccount, updateAccount } from "@/lib/server/account-store";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, context: Context) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { appUser } = await requireAppUser();
 
   const { id } = await context.params;
-  const account = await getAccount(user.id, id);
+  const account = await getAccount(appUser.id, id);
 
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -21,10 +18,7 @@ export async function GET(_: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { appUser } = await requireAppUser();
 
   const { id } = await context.params;
   const payload = (await request.json()) as {
@@ -53,7 +47,7 @@ export async function PATCH(request: Request, context: Context) {
   }
 
   try {
-    const account = await updateAccount(user.id, id, payload);
+    const account = await updateAccount(appUser.id, id, payload);
     if (!account) {
       return NextResponse.json({ error: "Account not found or is managed by env" }, { status: 404 });
     }

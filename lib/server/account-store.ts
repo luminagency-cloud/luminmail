@@ -68,7 +68,7 @@ export async function listAccounts(userId: string): Promise<MailAccount[]> {
   const { data, error } = await supabase
     .from("mail_accounts")
     .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
-    .eq("owner_user_id", userId)
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -92,7 +92,7 @@ export async function getAccount(userId: string, id: string): Promise<MailAccoun
   const { data, error } = await supabase
     .from("mail_accounts")
     .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
-    .eq("owner_user_id", userId)
+    .eq("user_id", userId)
     .eq("id", id)
     .maybeSingle();
 
@@ -132,7 +132,7 @@ export async function createAccount(
   const { data, error } = await supabase
     .from("mail_accounts")
     .insert({
-      owner_user_id: userId,
+      user_id: userId,
       name,
       email,
       imap_host: imapHost,
@@ -193,7 +193,7 @@ export async function updateAccount(
   const { data, error } = await supabase
     .from("mail_accounts")
     .update(updates)
-    .eq("owner_user_id", userId)
+    .eq("user_id", userId)
     .eq("id", id)
     .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
     .maybeSingle();

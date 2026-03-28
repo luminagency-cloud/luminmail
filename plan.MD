@@ -7,7 +7,8 @@ Implemented now:
 - Supabase Auth login/signup flow at `/login`
 - Protected routes and APIs via `proxy.ts`
 - Supabase server/browser/admin client helpers
-- `mail_accounts` schema and DB-backed account create/read/update APIs
+- `public.users` app-user layer resolved from `auth.users`
+- `mail_accounts` schema and DB-backed account create/read/update APIs owned by `public.users.id`
 - Account switcher that clearly shows active account name + email
 - Dev-only `.env.local` mailbox account injection for local testing
 - Mock message APIs for read, delete, and reply UI iteration
@@ -50,7 +51,8 @@ Not implemented yet:
 
 ### What to trust in the repo
 - Auth plumbing is real and uses Supabase
-- Account persistence is real and writes to Supabase
+- App users are now distinct from auth identities
+- Account persistence is real and writes to Supabase under the app-user model
 - The active-account UX is worth building on
 
 ### What not to trust yet
@@ -58,6 +60,10 @@ Not implemented yet:
 - Account passwords are not actually stored securely yet
 - `passwordStored` is currently only a UI flag, not proof of encrypted persistence
 - The current schema exists, but policies and secret-handling are still incomplete
+
+### Schema note
+- Re-run the latest file in `supabase/migrations/` in any environment created before this refactor
+- The app now expects `public.users` plus `mail_accounts.user_id`
 
 ## Original feasibility notes
 

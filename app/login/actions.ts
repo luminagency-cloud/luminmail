@@ -13,7 +13,7 @@ export async function signInAction(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
   }
 
   redirect(next || "/inbox");
@@ -35,16 +35,16 @@ export async function signUpAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
   }
 
   redirect(
-    `/login?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase, then sign in.")}&next=${encodeURIComponent(next)}`
+    `/?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase, then sign in.")}&next=${encodeURIComponent(next)}`
   );
 }
 
 export async function signOutAction() {
   const supabase = await getSupabaseServerClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/");
 }
