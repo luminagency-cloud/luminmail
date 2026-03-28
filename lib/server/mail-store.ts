@@ -3,6 +3,7 @@ import type { MailMessage } from "@/lib/types/mail";
 let messages: MailMessage[] = [
   {
     id: "msg_001",
+    accountId: "acct_work",
     threadId: "thread_abc",
     from: "Taylor <taylor@example.com>",
     to: "You <you@luminmail.dev>",
@@ -11,11 +12,24 @@ let messages: MailMessage[] = [
     bodyText: "Hey — can you review the final draft before noon?",
     receivedAt: "2026-03-28T09:22:00Z",
     unread: true
+  },
+  {
+    id: "msg_002",
+    accountId: "acct_personal",
+    threadId: "thread_xyz",
+    from: "Casey <casey@example.com>",
+    to: "Me <me@luminmail.dev>",
+    subject: "Dinner tomorrow?",
+    preview: "Want to grab dinner after work around 7?",
+    bodyText: "Want to grab dinner after work around 7? I can book a table.",
+    receivedAt: "2026-03-27T19:10:00Z",
+    unread: false
   }
 ];
 
-export function listMessages(): MailMessage[] {
-  return [...messages].sort((a, b) => (a.receivedAt < b.receivedAt ? 1 : -1));
+export function listMessages(accountId?: string): MailMessage[] {
+  const filtered = accountId ? messages.filter((message) => message.accountId === accountId) : messages;
+  return [...filtered].sort((a, b) => (a.receivedAt < b.receivedAt ? 1 : -1));
 }
 
 export function markMessageRead(id: string): MailMessage | undefined {
@@ -37,6 +51,7 @@ export function replyToMessage(id: string, bodyText: string): MailMessage | unde
 
   const reply: MailMessage = {
     id: `msg_${Date.now()}`,
+    accountId: source.accountId,
     threadId: source.threadId,
     from: "You <you@luminmail.dev>",
     to: source.from,

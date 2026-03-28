@@ -1,4 +1,65 @@
-# Limited Web Email Client Feasibility (SMTP/IMAP)
+# LuminMail Build Plan
+
+## Current repo state as of 2026-03-28
+
+Implemented now:
+- Next.js 16 app shell with inbox and account settings UI
+- Supabase Auth login/signup flow at `/login`
+- Protected routes and APIs via `proxy.ts`
+- Supabase server/browser/admin client helpers
+- `mail_accounts` schema and DB-backed account create/read/update APIs
+- Account switcher that clearly shows active account name + email
+- Dev-only `.env.local` mailbox account injection for local testing
+- Mock message APIs for read, delete, and reply UI iteration
+
+Not implemented yet:
+- IMAP connectivity and background sync
+- SMTP delivery
+- Credential encryption/persistence
+- Real message/thread/folder persistence wiring
+- Connection testing endpoint
+- Security hardening beyond basic route protection
+
+## Recommended next milestone
+
+### Milestone 1: live account connectivity
+1. Add encrypted credential storage for manual accounts
+2. Add `POST /api/accounts/test` for IMAP + SMTP connection verification
+3. Surface connection status in account settings
+4. Keep the env-backed mailbox as the initial live test target
+
+### Milestone 2: live inbox sync
+1. Add IMAP folder discovery and mailbox mapping
+2. Sync inbox headers into `messages` and `threads`
+3. Replace mock `/api/messages` list with Supabase-backed data
+4. Keep full message body fetch on demand at first
+
+### Milestone 3: send pipeline
+1. Add SMTP send endpoint
+2. Persist `send_log`
+3. Set `In-Reply-To` and `References`
+4. Surface retry/error states in the UI
+
+### Milestone 4: hardening
+1. RLS policies for all app tables
+2. Credential encryption at rest
+3. HTML sanitization
+4. Audit logging, rate limits, and provider-specific retry logic
+
+## Handoff notes for the next session
+
+### What to trust in the repo
+- Auth plumbing is real and uses Supabase
+- Account persistence is real and writes to Supabase
+- The active-account UX is worth building on
+
+### What not to trust yet
+- Message APIs are still mock-only
+- Account passwords are not actually stored securely yet
+- `passwordStored` is currently only a UI flag, not proof of encrypted persistence
+- The current schema exists, but policies and secret-handling are still incomplete
+
+## Original feasibility notes
 
 ## Short answer
 This is very buildable as a small-to-medium project if you intentionally keep scope tight.

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/server/auth";
 import { replyToMessage } from "@/lib/server/mail-store";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await context.params;
   const payload = (await request.json()) as { bodyText?: string };
 

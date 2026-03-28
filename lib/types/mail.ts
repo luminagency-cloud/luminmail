@@ -1,5 +1,6 @@
 export type MailMessageSummary = {
   id: string;
+  accountId: string;
   from: string;
   subject: string;
   preview: string;
