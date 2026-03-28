@@ -1,0 +1,39 @@
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: #0b1020;
+  color: #e2e8f0;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.card {
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+button {
+  background: #1d4ed8;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
+textarea {
+  width: 100%;
+  background: #0b1220;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
