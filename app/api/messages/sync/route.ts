@@ -11,13 +11,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    await syncAllAccounts();
+    const summary = await syncAllAccounts();
     await logAppEvent({
       scope: "messages.sync_all",
       level: "info",
-      message: "Background mailbox sync completed."
+      message: "Background mailbox sync completed.",
+      details: summary
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ...summary });
   } catch (error) {
     await logAppEvent({
       scope: "messages.sync_all",

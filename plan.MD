@@ -16,22 +16,24 @@ Implemented now:
 - Provider-backed delete/move-to-trash attempt over IMAP
 - Live SMTP reply/send through stored mailbox credentials
 - Protected sync route for cron-triggered mailbox refresh
+- SMTP send attempts persisted to `public.send_log`
+- `sync_state` records inbox sync progress
+- Folder discovery persisted to `public.mail_folders` and used for trash resolution
 
 Not implemented yet:
 - Durable queue/worker orchestration beyond cron-triggered sync
-- `send_log` persistence for SMTP attempts
-- `sync_state` cursor-based incremental sync
-- Folder mapping beyond `INBOX`
+- Folder sync beyond `INBOX`
+- Sync overlap locking
 - Robust provider-specific trash/special-folder handling
 - Security hardening beyond basic route protection
 
 ## Recommended next milestone
 
 ### Milestone 1: mail pipeline hardening
-1. Persist `send_log` for every SMTP attempt and failure
-2. Write `sync_state` cursors so sync stops rescanning the last 25 inbox messages every time
-3. Add folder discovery and special-folder mapping, especially trash resolution
-4. Decide whether full message bodies stay inline in `messages` or move to a separate body store
+1. Expand sync from `INBOX` into additional folders with explicit selection rules
+2. Add per-account overlap protection so cron and request-driven sync cannot race
+3. Decide whether full message bodies stay inline in `messages` or move to a separate body store
+4. Add a small admin/debug surface for `send_log` and `sync_state`
 
 ### Milestone 2: sync execution
 1. Keep the cron route, but move sync fan-out into a worker-safe execution model
@@ -60,11 +62,12 @@ Not implemented yet:
 - Mailbox passwords are encrypted before DB storage
 - Inbox listing is live against IMAP-backed cached data
 - Reply/send and delete now attempt real provider operations
+- `send_log` and `sync_state` are now populated by the live mail paths
 
 ### What not to trust yet
-- Sync currently rescans recent inbox mail instead of using durable cursors
-- Special-folder mapping is still naive
-- `send_log` is not populated yet
+- Sync is still limited to `INBOX`
+- Sync can still overlap if multiple requests hit the same account at once
+- Special-folder handling is better, but still depends on provider conventions
 - The current schema exists, but policies and hardening are still incomplete
 
 ### Schema note

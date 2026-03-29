@@ -53,16 +53,18 @@ If you created mailbox accounts before encrypted password storage was added, re-
 1. Open a real inbox message.
 2. Send a reply.
 3. Confirm the recipient receives it and the local thread view shows the outgoing message.
-4. Delete a synced message.
-5. Confirm it disappears from the app.
-6. Confirm it moved to Trash in the provider mailbox, or at minimum no longer remains in Inbox if the provider does not support direct move semantics cleanly.
+4. Confirm a `public.send_log` row exists with status `sent`.
+5. Delete a synced message.
+6. Confirm it disappears from the app.
+7. Confirm it moved to Trash in the provider mailbox, or at minimum no longer remains in Inbox if the provider does not support direct move semantics cleanly.
 
 ## Background sync route
 
 1. Send a `POST` request to `/api/messages/sync` with header `Authorization: Bearer <MAIL_SYNC_CRON_TOKEN>`.
 2. Confirm the route returns `200`.
 3. Confirm runtime logs show a completed sync event.
-4. Confirm a request without the token returns `401`.
+4. Confirm `public.sync_state` has `last_synced_at`, `uid_validity`, and `last_seen_uid` populated for the inbox folder.
+5. Confirm a request without the token returns `401`.
 
 ## Known caveat to watch
 

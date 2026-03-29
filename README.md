@@ -17,10 +17,13 @@ Built now:
 - Reply/send uses the connected account's SMTP credentials
 - Message delete attempts provider-side IMAP move-to-trash before removing local cache
 - Background mailbox sync route exists for cron-driven refreshes
+- SMTP attempts are persisted to `public.send_log`
+- Mail sync progress is tracked in `public.sync_state`
+- Folder metadata is discovered from IMAP and used for trash-folder targeting
 
 Still mocked or not done yet:
 - Durable worker/queue orchestration beyond cron-triggered sync
-- Folder discovery beyond `INBOX`
+- Folder sync beyond `INBOX`
 - Rich HTML body rendering and sanitization hardening
 - RLS policies and hardening pass
 
@@ -64,7 +67,7 @@ For backend writes and logging, prefer `SUPABASE_DB_URL` so server operations do
 
 ## Next recommended build steps
 
-1. Persist outgoing SMTP attempts and failures into `send_log`.
-2. Add per-account sync cursors in `sync_state` instead of rescanning recent inbox mail on every sync.
-3. Expand provider folder support beyond `INBOX` and make trash-folder targeting more robust.
+1. Add folder-level sync beyond `INBOX`.
+2. Add overlap protection so the same account is not synced concurrently.
+3. Surface `send_log` and `sync_state` in the UI for debugging.
 4. Add RLS policies and secret-handling hardening.

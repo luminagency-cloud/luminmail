@@ -122,8 +122,8 @@ Important columns:
 - `updated_at`
 
 Notes:
-- The table exists in the baseline schema but cursor-based sync is not wired yet.
-- Current sync still rescans recent inbox mail and then upserts into `public.messages`.
+- Current sync writes `uid_validity`, `last_seen_uid`, and `last_synced_at` for the inbox folder.
+- Sync is still limited to `INBOX`.
 
 ### `public.send_log`
 
@@ -138,6 +138,10 @@ Important columns:
 - `body_text`
 - `status`
 - `error_message`
+
+Notes:
+- SMTP reply/send now writes success and failure rows here.
+- This is the current durable record for outbound mail attempts.
 
 ### `public.app_error_logs`
 
@@ -182,5 +186,6 @@ Going forward:
 The current baseline schema lives in:
 
 - `supabase/migrations/20260329_0001_baseline.sql`
+- `supabase/migrations/20260329_0002_sync_state_and_send_log_indexes.sql`
 
 Future schema changes should be incremental migration files after that.
