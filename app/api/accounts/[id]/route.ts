@@ -28,6 +28,7 @@ export async function PATCH(request: Request, context: Context) {
     imapPort?: number;
     smtpHost?: string;
     smtpPort?: number;
+    signature?: string;
     password?: string;
   };
 

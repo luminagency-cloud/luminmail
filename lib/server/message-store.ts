@@ -79,6 +79,17 @@ function toPreview(text: string) {
   return text.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
+function applySignature(bodyText: string, signature: string) {
+  const trimmedBody = bodyText.trim();
+  const trimmedSignature = signature.trim();
+
+  if (!trimmedSignature) {
+    return trimmedBody;
+  }
+
+  return `${trimmedBody}\n\n${trimmedSignature}`;
+}
+
 function deriveThreadKey(messageId: string | null, inReplyTo: string | null, references: string[] | null, subject: string) {
   return inReplyTo || references?.[0] || messageId || `subject:${subject.trim().toLowerCase()}`;
 }
@@ -625,6 +636,7 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
   if (!credentials) return undefined;
 
   const subject = row.subject.startsWith("Re:") ? row.subject : `Re: ${row.subject}`;
+  const outgoingBody = applySignature(bodyText, credentials.signature);
   const toEmails = row.from_email ? [row.from_email] : [];
   const referenceHeaders = [...(row.reference_headers ?? []), ...(row.message_id_header ? [row.message_id_header] : [])];
   const transporter = nodemailer.createTransport({
@@ -642,7 +654,7 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
       from: credentials.email,
       to: row.from_email || undefined,
       subject,
-      text: bodyText,
+      text: outgoingBody,
       inReplyTo: row.message_id_header || undefined,
       references: referenceHeaders.length > 0 ? referenceHeaders : undefined
     });
@@ -652,7 +664,7 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
       threadId: row.thread_id,
       toEmails,
       subject,
-      bodyText,
+      bodyText: outgoingBody,
       status: "sent"
     });
 
@@ -676,8 +688,8 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
         credentials.email,
         toEmails,
         subject,
-        toPreview(bodyText),
-        bodyText
+        toPreview(outgoingBody),
+        outgoingBody
       ]
     );
 
@@ -688,7 +700,7 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
       threadId: row.thread_id,
       toEmails,
       subject,
-      bodyText,
+      bodyText: outgoingBody,
       status: "failed",
       errorMessage: error instanceof Error ? error.message : "SMTP send failed."
     });

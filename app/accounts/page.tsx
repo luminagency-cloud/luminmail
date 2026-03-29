@@ -14,6 +14,7 @@ type AccountDraft = {
   imapPort: string;
   smtpHost: string;
   smtpPort: string;
+  signature: string;
   password: string;
 };
 
@@ -24,6 +25,7 @@ const emptyDraft: AccountDraft = {
   imapPort: "993",
   smtpHost: "",
   smtpPort: "587",
+  signature: "",
   password: ""
 };
 
@@ -71,6 +73,7 @@ export default function AccountsPage() {
         imapPort: Number(draft.imapPort),
         smtpHost: draft.smtpHost,
         smtpPort: Number(draft.smtpPort),
+        signature: draft.signature,
         password: draft.password
       })
     });
@@ -108,6 +111,7 @@ export default function AccountsPage() {
         imapPort: Number(account.imapPort),
         smtpHost: account.smtpHost,
         smtpPort: Number(account.smtpPort),
+        signature: account.signature,
         password: account.password
       })
     });
@@ -231,6 +235,18 @@ export default function AccountsPage() {
             />
           </div>
           <div className="stack-sm formGridFull">
+            <label className="fieldLabel" htmlFor="new-account-signature">
+              Signature
+            </label>
+            <textarea
+              id="new-account-signature"
+              onChange={(event) => setDraft((current) => ({ ...current, signature: event.target.value }))}
+              placeholder="Optional signature for outgoing replies"
+              rows={4}
+              value={draft.signature}
+            />
+          </div>
+          <div className="stack-sm formGridFull">
             <label className="fieldLabel" htmlFor="new-account-password">
               Password
             </label>
@@ -289,6 +305,7 @@ function AccountEditor({
     imapPort: String(account.imapPort),
     smtpHost: account.smtpHost,
     smtpPort: String(account.smtpPort),
+    signature: account.signature,
     password: ""
   });
 
@@ -300,6 +317,7 @@ function AccountEditor({
       imapPort: String(account.imapPort),
       smtpHost: account.smtpHost,
       smtpPort: String(account.smtpPort),
+      signature: account.signature,
       password: ""
     });
   }, [account]);
@@ -378,6 +396,19 @@ function AccountEditor({
             inputMode="numeric"
             onChange={(event) => setDraft((current) => ({ ...current, smtpPort: event.target.value }))}
             value={draft.smtpPort}
+          />
+        </div>
+        <div className="stack-sm formGridFull">
+          <label className="fieldLabel" htmlFor={`${account.id}-signature`}>
+            Signature
+          </label>
+          <textarea
+            disabled={account.source === "env"}
+            id={`${account.id}-signature`}
+            onChange={(event) => setDraft((current) => ({ ...current, signature: event.target.value }))}
+            placeholder="Optional signature for outgoing replies"
+            rows={4}
+            value={draft.signature}
           />
         </div>
         <div className="stack-sm formGridFull">

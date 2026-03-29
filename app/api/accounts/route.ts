@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     imapPort?: number;
     smtpHost?: string;
     smtpPort?: number;
+    signature?: string;
     password?: string;
   };
 
@@ -82,12 +83,13 @@ export async function POST(request: Request) {
     const account = await createAccount(appUser.id, {
       name: payload.name,
       email: payload.email,
-      imapHost: payload.imapHost,
-      imapPort: Number(payload.imapPort) || 993,
-      smtpHost: payload.smtpHost,
-      smtpPort: Number(payload.smtpPort) || 587,
-      password: payload.password
-    });
+        imapHost: payload.imapHost,
+        imapPort: Number(payload.imapPort) || 993,
+        smtpHost: payload.smtpHost,
+        smtpPort: Number(payload.smtpPort) || 587,
+        signature: payload.signature ?? "",
+        password: payload.password
+      });
 
     if (!account) {
       return NextResponse.json({ error: "Unable to create account" }, { status: 400 });

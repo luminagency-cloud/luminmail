@@ -9,6 +9,7 @@ type AccountCredentialRow = {
   imap_port: number;
   smtp_host: string;
   smtp_port: number;
+  signature: string | null;
   encrypted_secret: Buffer | null;
   secret_iv: Buffer | null;
 };
@@ -16,7 +17,7 @@ type AccountCredentialRow = {
 export async function getDecryptedAccountCredentials(userId: string, accountId: string) {
   const result = await dbQuery<AccountCredentialRow>(
     `
-      select id, user_id, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret, secret_iv
+      select id, user_id, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret, secret_iv
       from public.mail_accounts
       where user_id = $1::uuid and id = $2::uuid
       limit 1
@@ -40,6 +41,7 @@ export async function getDecryptedAccountCredentials(userId: string, accountId: 
     imapPort: row.imap_port,
     smtpHost: row.smtp_host,
     smtpPort: row.smtp_port,
+    signature: row.signature ?? "",
     password: decryptMailboxPassword(row.encrypted_secret, row.secret_iv)
   };
 }

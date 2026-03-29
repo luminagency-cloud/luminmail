@@ -13,6 +13,7 @@ type MailAccountRow = {
   imap_port: number;
   smtp_host: string;
   smtp_port: number;
+  signature: string | null;
   encrypted_secret: Buffer | null;
   secret_iv?: Buffer | null;
 };
@@ -52,6 +53,7 @@ function mapRowToAccount(row: MailAccountRow): MailAccount {
     imapPort: row.imap_port,
     smtpHost: row.smtp_host,
     smtpPort: row.smtp_port,
+    signature: row.signature ?? "",
     passwordStored: Boolean(row.encrypted_secret),
     source: "manual"
   };
@@ -66,7 +68,7 @@ export async function listAccounts(userId: string): Promise<MailAccount[]> {
   if (hasDatabaseUrl()) {
     const result = await dbQuery<MailAccountRow>(
       `
-        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret
         from public.mail_accounts
         where user_id = $1::uuid
         order by created_at asc
@@ -84,7 +86,7 @@ export async function listAccounts(userId: string): Promise<MailAccount[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("mail_accounts")
-    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
+    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
@@ -104,7 +106,7 @@ export async function getAccount(userId: string, id: string): Promise<MailAccoun
   if (hasDatabaseUrl()) {
     const result = await dbQuery<MailAccountRow>(
       `
-        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret
         from public.mail_accounts
         where user_id = $1::uuid and id = $2::uuid
         limit 1
@@ -122,7 +124,7 @@ export async function getAccount(userId: string, id: string): Promise<MailAccoun
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("mail_accounts")
-    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
+    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret")
     .eq("user_id", userId)
     .eq("id", id)
     .maybeSingle();
@@ -143,6 +145,7 @@ export async function createAccount(
     imapPort: number;
     smtpHost: string;
     smtpPort: number;
+    signature?: string;
     password?: string;
   }
 ): Promise<MailAccount | undefined> {
@@ -151,6 +154,7 @@ export async function createAccount(
     const email = input.email.trim();
     const imapHost = input.imapHost.trim();
     const smtpHost = input.smtpHost.trim();
+    const signature = input.signature ?? "";
 
     if (!name || !email || !imapHost || !smtpHost) {
       return undefined;
@@ -161,10 +165,10 @@ export async function createAccount(
       const result = await dbQuery<MailAccountRow>(
         `
           insert into public.mail_accounts (
-            user_id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret, secret_iv
+            user_id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret, secret_iv
           )
-          values ($1::uuid, $2::text, $3::text, $4::text, $5::integer, $6::text, $7::integer, $8::bytea, $9::bytea)
-          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+          values ($1::uuid, $2::text, $3::text, $4::text, $5::integer, $6::text, $7::integer, $8::text, $9::bytea, $10::bytea)
+          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret
         `,
         [
           userId,
@@ -174,6 +178,7 @@ export async function createAccount(
           input.imapPort,
           smtpHost,
           input.smtpPort,
+          signature,
           secret?.encryptedSecret ?? null,
           secret?.secretIv ?? null
         ]
@@ -196,6 +201,7 @@ export async function createAccount(
   const email = input.email.trim();
   const imapHost = input.imapHost.trim();
   const smtpHost = input.smtpHost.trim();
+  const signature = input.signature ?? "";
 
   if (!name || !email || !imapHost || !smtpHost) {
     return undefined;
@@ -211,9 +217,10 @@ export async function createAccount(
       imap_host: imapHost,
       imap_port: input.imapPort,
       smtp_host: smtpHost,
-      smtp_port: input.smtpPort
+      smtp_port: input.smtpPort,
+      signature
     })
-    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
+    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret")
     .single();
 
   if (error) {
@@ -238,6 +245,7 @@ export async function updateAccount(
     imapPort?: number;
     smtpHost?: string;
     smtpPort?: number;
+    signature?: string;
     password?: string;
   }
 ): Promise<MailAccount | undefined> {
@@ -275,6 +283,10 @@ export async function updateAccount(
       updates.push(`smtp_port = $${index++}::integer`);
       values.push(input.smtpPort);
     }
+    if (input.signature !== undefined) {
+      updates.push(`signature = $${index++}::text`);
+      values.push(input.signature);
+    }
     if (input.password?.trim()) {
       const secret = encryptMailboxPassword(input.password.trim());
       updates.push(`encrypted_secret = $${index++}::bytea`);
@@ -293,7 +305,7 @@ export async function updateAccount(
           update public.mail_accounts
           set ${updates.join(", ")}, updated_at = timezone('utc', now())
           where user_id = $1::uuid and id = $2::uuid
-          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret
         `,
         values
       );
@@ -325,6 +337,7 @@ export async function updateAccount(
   if (typeof input.imapPort === "number" && Number.isFinite(input.imapPort)) updates.imap_port = input.imapPort;
   if (input.smtpHost?.trim()) updates.smtp_host = input.smtpHost.trim();
   if (typeof input.smtpPort === "number" && Number.isFinite(input.smtpPort)) updates.smtp_port = input.smtpPort;
+  if (input.signature !== undefined) updates.signature = input.signature;
 
   if (Object.keys(updates).length === 0) {
     return getAccount(userId, id);
@@ -336,7 +349,7 @@ export async function updateAccount(
     .update(updates)
     .eq("user_id", userId)
     .eq("id", id)
-    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret")
+    .select("id, name, email, imap_host, imap_port, smtp_host, smtp_port, signature, encrypted_secret")
     .maybeSingle();
 
   if (error) {

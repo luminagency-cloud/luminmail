@@ -6,6 +6,7 @@ export type MailAccount = {
   imapPort: number;
   smtpHost: string;
   smtpPort: number;
+  signature: string;
   passwordStored: boolean;
   source: "manual" | "env";
 };
