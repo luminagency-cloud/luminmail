@@ -5,6 +5,7 @@ import type { MailMessage } from "@/lib/types/mail";
 import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
 import { getAccount } from "@/lib/server/account-store";
 import { getDecryptedAccountCredentials } from "@/lib/server/account-credentials";
+import { applySignature } from "@/lib/server/message-compose";
 
 type MessageRow = {
   id: string;
@@ -77,17 +78,6 @@ function mapMessageRow(row: MessageRow): MailMessage {
 
 function toPreview(text: string) {
   return text.replace(/\s+/g, " ").trim().slice(0, 160);
-}
-
-function applySignature(bodyText: string, signature: string) {
-  const trimmedBody = bodyText.trim();
-  const trimmedSignature = signature.trim();
-
-  if (!trimmedSignature) {
-    return trimmedBody;
-  }
-
-  return `${trimmedBody}\n\n${trimmedSignature}`;
 }
 
 function deriveThreadKey(messageId: string | null, inReplyTo: string | null, references: string[] | null, subject: string) {

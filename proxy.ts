@@ -50,9 +50,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(inboxUrl);
   }
 
+  if (user && request.nextUrl.pathname === "/") {
+    const inboxUrl = request.nextUrl.clone();
+    inboxUrl.pathname = "/inbox";
+    inboxUrl.search = "";
+    return NextResponse.redirect(inboxUrl);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/login", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
+  matcher: ["/", "/login", "/auth/:path*", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
 };

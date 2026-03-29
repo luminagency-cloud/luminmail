@@ -6,6 +6,8 @@ Minimal webmail client prototype moving toward a real IMAP/SMTP-backed build.
 
 Built now:
 - Supabase Auth sign-in/sign-up flow on `/`
+- Supabase confirmation callback flow on `/auth/callback`
+- Inline resend-confirmation flow on `/`
 - Protected app shell for `/inbox`, `/accounts`, and related APIs
 - App-level `public.users` records resolved from Supabase Auth users
 - DB-backed mail account records stored in Supabase and owned by `public.users.id`
@@ -13,6 +15,7 @@ Built now:
 - Direct Postgres path for app-user, account, message, and error-log writes
 - Account switcher plus editable account names and mailbox host settings
 - Account create/update validates IMAP and SMTP before saving
+- Optional per-account reply signature
 - Inbox message list backed by live IMAP header sync into `messages` and `threads`
 - Reply/send uses the connected account's SMTP credentials
 - Message delete attempts provider-side IMAP move-to-trash before removing local cache
@@ -20,6 +23,7 @@ Built now:
 - SMTP attempts are persisted to `public.send_log`
 - Mail sync progress is tracked in `public.sync_state`
 - Folder metadata is discovered from IMAP and used for trash-folder targeting
+- DB-only issue reporting from the inbox UI into `public.issue_reports`
 
 Still mocked or not done yet:
 - Durable worker/queue orchestration beyond cron-triggered sync
@@ -52,6 +56,8 @@ When the `DEV_MAIL_ACCOUNT_*` variables are present, the app loads that mailbox 
 3. Copy the project URL, anon key, service role key, server-side Postgres connection string, `MAIL_SECRET_KEY`, and `MAIL_SYNC_CRON_TOKEN` into `.env.local`.
 4. Create your first auth user from the app at `/` or in the Supabase Auth dashboard.
 5. If you ran an older version of the schema already, rerun the latest migration so `public.users` and the `mail_accounts.user_id` ownership model are created.
+6. In Supabase Auth URL Configuration, add your deployed app URL as the Site URL and add both your deployed `/auth/callback` URL and local `http://localhost:3000/auth/callback` as redirect URLs.
+7. If email confirmation is enabled, confirm the Supabase email template uses the callback URL path and that the redirect URLs above are allowed.
 
 Going forward, treat `supabase/migrations/*.sql` as the source of truth for DB changes and `docs/schema.md` as the readable model reference.
 

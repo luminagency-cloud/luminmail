@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MailAccount } from "@/lib/types/account";
 import type { MailMessage } from "@/lib/types/mail";
 
 type MessagesResponse = { messages: MailMessage[] };
 type AccountsResponse = { accounts: MailAccount[] };
+type IssueReportResponse = {
+  ok: boolean;
+  reportId: string;
+};
 
 export default function InboxPage() {
   const [accounts, setAccounts] = useState<MailAccount[]>([]);
@@ -14,6 +18,15 @@ export default function InboxPage() {
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [reply, setReply] = useState("");
+  const [showIssueForm, setShowIssueForm] = useState(false);
+  const [issueDescription, setIssueDescription] = useState("");
+  const [issueScreenshot, setIssueScreenshot] = useState<File | null>(null);
+  const [issueFileKey, setIssueFileKey] = useState(0);
+  const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
+  const [issueMessage, setIssueMessage] = useState<string | null>(null);
+  const readingPaneRef = useRef<HTMLDivElement | null>(null);
+  const replyBoxRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     async function loadAccounts() {
@@ -52,6 +65,16 @@ export default function InboxPage() {
 
   const selected = messages.find((message) => message.id === selectedId);
   const activeAccount = accounts.find((account) => account.id === activeAccountId);
+  const threadMessages = useMemo(() => {
+    if (!selected) {
+      return [] as MailMessage[];
+    }
+
+    const threadKey = selected.threadId || selected.id;
+    const related = messages.filter((message) => (message.threadId || message.id) === threadKey && message.id !== selected.id);
+    related.sort((left, right) => new Date(left.receivedAt).getTime() - new Date(right.receivedAt).getTime());
+    return [selected, ...related];
+  }, [messages, selected]);
 
   async function markRead() {
     if (!selected) return;
@@ -88,6 +111,58 @@ export default function InboxPage() {
     setReply("");
   }
 
+  function focusReplyBox() {
+    replyBoxRef.current?.focus();
+  }
+
+  async function submitIssueReport() {
+    if (!issueDescription.trim()) {
+      setIssueError("Describe the issue before saving it.");
+      return;
+    }
+
+    setIssueSubmitting(true);
+    setIssueError(null);
+    setIssueMessage(null);
+
+    const payload = new FormData();
+    payload.append("description", issueDescription);
+    payload.append("pageRoute", `${window.location.pathname}${window.location.search}`);
+    if (activeAccountId) {
+      payload.append("accountId", activeAccountId);
+    }
+    if (issueScreenshot) {
+      payload.append("screenshot", issueScreenshot);
+    }
+
+    const response = await fetch("/api/issues", {
+      method: "POST",
+      body: payload
+    });
+
+    setIssueSubmitting(false);
+
+    if (!response.ok) {
+      const errorPayload = (await response.json().catch(() => ({ error: "Unable to save issue report." }))) as {
+        error?: string;
+      };
+      setIssueError(errorPayload.error ?? "Unable to save issue report.");
+      return;
+    }
+
+    const result = (await response.json()) as IssueReportResponse;
+    setIssueMessage(`Issue saved as ${result.reportId}.`);
+
+    setIssueDescription("");
+    setIssueScreenshot(null);
+    setIssueFileKey((current) => current + 1);
+    setShowIssueForm(false);
+  }
+
+  useEffect(() => {
+    readingPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [selectedId, activeAccountId]);
+
   return (
     <main className="container stack-lg">
       <section className="topbar">
@@ -115,51 +190,134 @@ export default function InboxPage() {
           <Link className="buttonLink secondaryButton" href="/accounts">
             Manage accounts
           </Link>
+          <button className="secondaryButton" onClick={() => setShowIssueForm((current) => !current)} type="button">
+            {showIssueForm ? "Close issue report" : "Report an issue"}
+          </button>
         </div>
       </section>
 
-      <section className="grid">
-        <div className="panel">
-          <h2>Messages</h2>
-          {messages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}
-          {messages.map((message) => (
-            <button className="messageCard" key={message.id} onClick={() => setSelectedId(message.id)} type="button">
-              <span className="messageCardHeader">
-                <strong>{message.subject}</strong>
-                {message.unread ? <span className="statusDot" aria-label="Unread" /> : null}
-              </span>
-              <span>{message.from}</span>
-              <span className="muted">{message.preview}</span>
+      {showIssueForm ? (
+        <section className="panel stack-md">
+          <div className="stack-sm">
+            <p className="eyebrow">Tester feedback</p>
+            <h2>Report an issue</h2>
+            <p className="muted">Send a note and optional screenshot. The report is saved in the database for review.</p>
+          </div>
+          {issueError ? <p className="errorBanner">{issueError}</p> : null}
+          {issueMessage ? <p className="successBanner">{issueMessage}</p> : null}
+          <div className="stack-sm">
+            <label className="fieldLabel" htmlFor="issue-description">
+              What went wrong?
+            </label>
+            <textarea
+              id="issue-description"
+              onChange={(event) => setIssueDescription(event.target.value)}
+              placeholder="Describe what you were doing, what happened, and what you expected instead."
+              rows={6}
+              value={issueDescription}
+            />
+          </div>
+          <div className="stack-sm">
+            <label className="fieldLabel" htmlFor="issue-screenshot">
+              Screenshot
+            </label>
+            <input
+              id="issue-screenshot"
+              key={issueFileKey}
+              accept="image/*"
+              onChange={(event) => setIssueScreenshot(event.target.files?.[0] ?? null)}
+              type="file"
+            />
+            <p className="muted">Optional. Images up to 5MB are accepted.</p>
+          </div>
+          <div className="actions">
+            <button disabled={issueSubmitting} onClick={() => void submitIssueReport()} type="button">
+              {issueSubmitting ? "Saving..." : "Save issue report"}
             </button>
-          ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid inboxGrid">
+        <div className="panel messageListPanel">
+          <div className="messagePanelHeader">
+            <h2>Messages</h2>
+            <p className="muted">{messages.length} loaded</p>
+          </div>
+          <div className="messageListScroll">
+            {messages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}
+            {messages.map((message) => (
+              <button
+                className={`messageCard${message.id === selectedId ? " activeMessageCard" : ""}`}
+                key={message.id}
+                onClick={() => setSelectedId(message.id)}
+                type="button"
+              >
+                <span className="messageCardHeader">
+                  <strong>{message.subject}</strong>
+                  {message.unread ? <span className="statusDot" aria-label="Unread" /> : null}
+                </span>
+                <span>{message.from}</span>
+                <span className="muted">{message.preview}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="panel">
+        <div className="panel readingPanePanel">
           {selected ? (
             <>
-              <h2>{selected.subject}</h2>
-              <p className="muted">
-                {selected.from} to {selected.to}
-              </p>
-              <p>{selected.bodyText}</p>
-              <div className="actions">
-                <button onClick={markRead} type="button">
-                  Mark Read
-                </button>
-                <button className="secondaryButton" onClick={deleteSelected} type="button">
-                  Delete
-                </button>
+              <div className="readingPaneHeader">
+                <div className="stack-sm">
+                  <h2>{selected.subject}</h2>
+                  <p className="muted">
+                    {selected.from} to {selected.to}
+                  </p>
+                  {threadMessages.length > 1 ? <p className="muted">Thread with {threadMessages.length} messages</p> : null}
+                </div>
+                <div className="iconActionStack">
+                  <button className="iconActionButton" onClick={focusReplyBox} type="button">
+                    <span aria-hidden="true">↩</span>
+                    <span>Reply</span>
+                  </button>
+                  <button className="iconActionButton dangerIconButton" onClick={deleteSelected} type="button">
+                    <span aria-hidden="true">🗑</span>
+                    <span>Delete</span>
+                  </button>
+                  {selected.unread ? (
+                    <button className="iconActionButton secondaryButton" onClick={markRead} type="button">
+                      <span>Mark read</span>
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              <div className="stack-sm">
+
+              <div className="replyComposer stack-sm">
                 <label className="fieldLabel" htmlFor="reply-box">
                   Reply
                 </label>
-                <textarea id="reply-box" onChange={(e) => setReply(e.target.value)} rows={5} value={reply} />
+                <textarea id="reply-box" onChange={(e) => setReply(e.target.value)} ref={replyBoxRef} rows={5} value={reply} />
                 <div>
                   <button onClick={sendReply} type="button">
                     Send Reply
                   </button>
                 </div>
+              </div>
+
+              <div className="readingPaneScroll" ref={readingPaneRef}>
+                {threadMessages.map((message, index) => (
+                  <article className={`threadMessageCard${index === 0 ? " currentThreadMessage" : ""}`} key={message.id}>
+                    <div className="threadMessageHeader">
+                      <div className="stack-sm">
+                        <strong>{message.from}</strong>
+                        <p className="muted">
+                          {new Date(message.receivedAt).toLocaleString()} {message.id === selected.id ? "• current message" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="threadMessageBody">{message.bodyText}</p>
+                  </article>
+                ))}
               </div>
             </>
           ) : (

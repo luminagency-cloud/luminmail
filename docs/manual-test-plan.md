@@ -2,6 +2,11 @@
 
 Use this after applying the latest migration and deploying the matching app build.
 
+Latest required migrations for this plan:
+
+- `supabase/migrations/20260329_0003_mail_account_signature.sql`
+- `supabase/migrations/20260329_0004_issue_reports.sql`
+
 ## Before you start
 
 Confirm these environment variables exist in both local and Vercel:
@@ -20,9 +25,12 @@ If you created mailbox accounts before encrypted password storage was added, re-
 1. Open `/`.
 2. Sign up with a fresh address.
 3. Confirm the UI tells you whether to check email or continue signed in.
-4. Sign out.
-5. Sign in with the correct password.
-6. Sign in once with a wrong password and confirm the error stays inline and readable.
+4. Use the confirmation email and confirm the link returns to `/auth/callback` and then into the app.
+5. If the link is expired or missing, use `Resend confirmation` on `/` and confirm the newest email arrives.
+6. Sign out.
+7. Sign in with the correct password.
+8. Sign in once with a wrong password and confirm the error stays inline and readable.
+9. Open a fresh browser tab after signing in and confirm the session persists without forcing a new login.
 
 ## Account creation validation
 
@@ -37,9 +45,10 @@ If you created mailbox accounts before encrypted password storage was added, re-
 
 1. Edit only the display name and save.
 2. Confirm the name changes without forcing connection revalidation.
-3. Edit a connection field without entering a password and confirm the UI blocks the save.
-4. Edit a connection field with the password and confirm IMAP/SMTP validation runs before save.
-5. Delete an account and confirm it disappears from `/accounts` and the inbox switcher.
+3. Add or update the account signature and confirm it saves.
+4. Edit a connection field without entering a password and confirm the UI blocks the save.
+5. Edit a connection field with the password and confirm IMAP/SMTP validation runs before save.
+6. Delete an account and confirm it disappears from `/accounts` and the inbox switcher.
 
 ## Inbox sync
 
@@ -52,11 +61,21 @@ If you created mailbox accounts before encrypted password storage was added, re-
 
 1. Open a real inbox message.
 2. Send a reply.
-3. Confirm the recipient receives it and the local thread view shows the outgoing message.
+3. Confirm the recipient receives it, the local thread view shows the outgoing message, and the saved account signature is appended when configured.
 4. Confirm a `public.send_log` row exists with status `sent`.
 5. Delete a synced message.
 6. Confirm it disappears from the app.
 7. Confirm it moved to Trash in the provider mailbox, or at minimum no longer remains in Inbox if the provider does not support direct move semantics cleanly.
+
+## Issue reporting
+
+1. Open `/inbox`.
+2. Click `Report an issue`.
+3. Submit a report with text only.
+4. Confirm the UI shows a saved report ID.
+5. Submit a second report with a screenshot.
+6. Confirm both rows appear in `public.issue_reports`.
+7. Confirm the screenshot row stores `screenshot_name`, `screenshot_content_type`, and non-null `screenshot_bytes`.
 
 ## Background sync route
 

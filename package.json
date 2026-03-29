@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit -p tsconfig.lint.json",
+    "test": "tsx --test tests/**/*.test.ts",
+    "verify": "npm run lint && npm run test && npm run build",
     "version:check": "node scripts/check-version.js"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.0.0"
   }
 }

@@ -5,22 +5,30 @@ import { getAppUrl } from "@/lib/server/app-url";
 import { logAppEvent } from "@/lib/server/error-log";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+function sanitizeNextPath(next: string | null | undefined) {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return "/inbox";
+  }
+
+  return next;
+}
+
+function getAuthRedirectUrl(appUrl: string, next: string) {
+  const url = new URL("/auth/callback", appUrl);
+  url.searchParams.set("next", next || "/inbox");
+  return url.toString();
+}
+
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/inbox");
+  const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
 
   try {
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      await logAppEvent({
-        scope: "auth.sign_in",
-        message: error.message,
-        level: "warn",
-        details: { email, code: error.code, status: error.status }
-      });
       redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
   } catch (error) {
@@ -39,7 +47,7 @@ export async function signInAction(formData: FormData) {
 export async function signUpAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/inbox");
+  const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
   try {
     const appUrl = await getAppUrl();
     const supabase = await getSupabaseServerClient();
@@ -47,17 +55,11 @@ export async function signUpAction(formData: FormData) {
       email,
       password,
       options: {
-        emailRedirectTo: `${appUrl}/login`
+        emailRedirectTo: getAuthRedirectUrl(appUrl, next)
       }
     });
 
     if (error) {
-      await logAppEvent({
-        scope: "auth.sign_up",
-        message: error.message,
-        level: "warn",
-        details: { email, code: error.code, status: error.status }
-      });
       redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
 
@@ -75,7 +77,44 @@ export async function signUpAction(formData: FormData) {
   }
 
   redirect(
-    `/?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase, then sign in.")}&next=${encodeURIComponent(next)}`
+    `/?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase. The link will bring you back here and sign you in.")}&next=${encodeURIComponent(next)}`
+  );
+}
+
+export async function resendConfirmationAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
+
+  if (!email) {
+    redirect(`/?error=${encodeURIComponent("Enter your email address to resend the confirmation link.")}&next=${encodeURIComponent(next)}`);
+  }
+
+  try {
+    const appUrl = await getAppUrl();
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl(appUrl, next)
+      }
+    });
+
+    if (error) {
+      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    }
+  } catch (error) {
+    await logAppEvent({
+      scope: "auth.resend_confirmation.unhandled",
+      message: error instanceof Error ? error.message : "Unhandled resend confirmation failure",
+      level: "error",
+      details: { email, error }
+    });
+    redirect(`/?error=${encodeURIComponent("Resend failed unexpectedly. Check runtime logs.")}&next=${encodeURIComponent(next)}`);
+  }
+
+  redirect(
+    `/?message=${encodeURIComponent("Confirmation email re-sent. Use the newest email and open it promptly.")}&next=${encodeURIComponent(next)}`
   );
 }
 

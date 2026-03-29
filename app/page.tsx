@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signInAction, signUpAction } from "@/app/login/actions";
+import { resendConfirmationAction, signInAction, signUpAction } from "@/app/login/actions";
 import { getCurrentUser } from "@/lib/server/auth";
 import { hasSupabasePublicEnv } from "@/lib/supabase/env";
 
@@ -10,7 +10,17 @@ function normalizeAuthMessage(message: string | undefined) {
   const lower = message.toLowerCase();
   if (lower.includes("invalid login credentials")) return "Invalid email or password.";
   if (lower.includes("email not confirmed")) return "Check your inbox and confirm your account before signing in.";
+  if (lower.includes("expired")) return "That link expired. Request a fresh confirmation email and use the newest message.";
+  if (lower.includes("otp")) return "That confirmation link is invalid or expired. Request a new one.";
   return message;
+}
+
+function sanitizeNextPath(next: string | undefined) {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return "/inbox";
+  }
+
+  return next;
 }
 
 export default async function HomePage({
@@ -35,7 +45,7 @@ export default async function HomePage({
   }
 
   const params = await searchParams;
-  const next = params.next ?? "/inbox";
+  const next = sanitizeNextPath(params.next);
   const errorMessage = normalizeAuthMessage(params.error);
 
   return (
@@ -63,6 +73,18 @@ export default async function HomePage({
 
         {errorMessage ? <p className="errorBanner">{errorMessage}</p> : null}
         {params.message ? <p className="successBanner">{params.message}</p> : null}
+
+        <form action={resendConfirmationAction} className="authPanel stack-sm">
+          <input name="next" type="hidden" value={next} />
+          <p className="eyebrow">Confirmation help</p>
+          <p className="muted">If the signup email expired or never arrived, resend it here.</p>
+          <div className="inlineForm">
+            <input name="email" placeholder="you@example.com" type="email" />
+            <button className="secondaryButton" type="submit">
+              Resend confirmation
+            </button>
+          </div>
+        </form>
 
         <div className="authGrid">
           <form action={signInAction} className="authPanel stack-md">

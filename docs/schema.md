@@ -51,6 +51,7 @@ Important columns:
 - `imap_port`
 - `smtp_host`
 - `smtp_port`
+- `signature`
 - `encrypted_secret`
 - `secret_iv`
 - `provider`
@@ -61,6 +62,7 @@ Notes:
 - This table represents mailbox connections, not app login identities.
 - One app user can own many mail accounts.
 - `encrypted_secret` and `secret_iv` store the encrypted mailbox password and IV used for IMAP/SMTP operations.
+- `signature` is the optional plain-text footer appended to outgoing replies for that mailbox.
 
 ### `public.mail_folders`
 
@@ -161,6 +163,29 @@ Notes:
 - This is intended for operational debugging while the product is still early.
 - It stores structured error/event records you can inspect directly in the database.
 - Runtime logs are still the primary source when DB logging itself is impaired.
+- Expected auth failures such as bad passwords or expired confirmation links should not be written here.
+
+### `public.issue_reports`
+
+Tester-submitted issue reports captured from the app UI.
+
+Important columns:
+- `id`
+- `user_id`
+- `auth_user_id`
+- `account_id`
+- `reporter_email`
+- `page_route`
+- `description`
+- `screenshot_name`
+- `screenshot_content_type`
+- `screenshot_bytes`
+- `screenshot_size`
+- `created_at`
+
+Notes:
+- This is DB-only for now. There is no email or realtime notification path attached to issue submission.
+- Screenshot storage currently lives directly in Postgres as `bytea` for simplicity.
 
 ## Triggers and functions
 
@@ -187,5 +212,7 @@ The current baseline schema lives in:
 
 - `supabase/migrations/20260329_0001_baseline.sql`
 - `supabase/migrations/20260329_0002_sync_state_and_send_log_indexes.sql`
+- `supabase/migrations/20260329_0003_mail_account_signature.sql`
+- `supabase/migrations/20260329_0004_issue_reports.sql`
 
 Future schema changes should be incremental migration files after that.
