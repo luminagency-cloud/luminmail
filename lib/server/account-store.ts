@@ -3,6 +3,7 @@ import { getEnvBackedAccount } from "@/lib/server/dev-mailbox-env";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { hasSupabaseServiceEnv } from "@/lib/supabase/env";
 import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
+import { encryptMailboxPassword } from "@/lib/server/mail-secrets";
 
 type MailAccountRow = {
   id: string;
@@ -12,7 +13,8 @@ type MailAccountRow = {
   imap_port: number;
   smtp_host: string;
   smtp_port: number;
-  encrypted_secret: string | null;
+  encrypted_secret: Buffer | null;
+  secret_iv?: Buffer | null;
 };
 
 export class AccountStoreError extends Error {
@@ -155,15 +157,26 @@ export async function createAccount(
     }
 
     try {
+      const secret = input.password?.trim() ? encryptMailboxPassword(input.password.trim()) : null;
       const result = await dbQuery<MailAccountRow>(
         `
           insert into public.mail_accounts (
-            user_id, name, email, imap_host, imap_port, smtp_host, smtp_port
+            user_id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret, secret_iv
           )
-          values ($1::uuid, $2::text, $3::text, $4::text, $5::integer, $6::text, $7::integer)
+          values ($1::uuid, $2::text, $3::text, $4::text, $5::integer, $6::text, $7::integer, $8::bytea, $9::bytea)
           returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
         `,
-        [userId, name, email, imapHost, input.imapPort, smtpHost, input.smtpPort]
+        [
+          userId,
+          name,
+          email,
+          imapHost,
+          input.imapPort,
+          smtpHost,
+          input.smtpPort,
+          secret?.encryptedSecret ?? null,
+          secret?.secretIv ?? null
+        ]
       );
 
       const account = mapRowToAccount(result.rows[0]);
@@ -261,6 +274,13 @@ export async function updateAccount(
     if (typeof input.smtpPort === "number" && Number.isFinite(input.smtpPort)) {
       updates.push(`smtp_port = $${index++}::integer`);
       values.push(input.smtpPort);
+    }
+    if (input.password?.trim()) {
+      const secret = encryptMailboxPassword(input.password.trim());
+      updates.push(`encrypted_secret = $${index++}::bytea`);
+      values.push(secret.encryptedSecret);
+      updates.push(`secret_iv = $${index++}::bytea`);
+      values.push(secret.secretIv);
     }
 
     if (updates.length === 0) {
