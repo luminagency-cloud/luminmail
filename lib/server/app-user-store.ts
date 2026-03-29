@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import type { AppUser } from "@/lib/types/app-user";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { hasSupabaseServiceEnv } from "@/lib/supabase/env";
+import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
 
 type AppUserRow = {
   id: string;
@@ -31,6 +32,23 @@ function inferDisplayName(user: User) {
 }
 
 export async function ensureAppUser(authUser: User): Promise<AppUser> {
+  if (hasDatabaseUrl()) {
+    const result = await dbQuery<AppUserRow>(
+      `
+        insert into public.users (auth_user_id, email, display_name)
+        values ($1::uuid, $2::text, $3::text)
+        on conflict (auth_user_id) do update
+          set email = excluded.email,
+              display_name = coalesce(excluded.display_name, public.users.display_name),
+              updated_at = timezone('utc', now())
+        returning id, auth_user_id, email, display_name
+      `,
+      [authUser.id, authUser.email ?? "", inferDisplayName(authUser)]
+    );
+
+    return mapRow(result.rows[0]);
+  }
+
   if (!hasSupabaseServiceEnv()) {
     throw new Error("Supabase service environment variables are missing.");
   }

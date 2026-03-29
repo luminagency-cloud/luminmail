@@ -2,6 +2,7 @@ import type { MailAccount } from "@/lib/types/account";
 import { getEnvBackedAccount } from "@/lib/server/dev-mailbox-env";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { hasSupabaseServiceEnv } from "@/lib/supabase/env";
+import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
 
 type MailAccountRow = {
   id: string;
@@ -60,6 +61,20 @@ function mergeEnvAccount(accounts: MailAccount[]) {
 }
 
 export async function listAccounts(userId: string): Promise<MailAccount[]> {
+  if (hasDatabaseUrl()) {
+    const result = await dbQuery<MailAccountRow>(
+      `
+        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        from public.mail_accounts
+        where user_id = $1::uuid
+        order by created_at asc
+      `,
+      [userId]
+    );
+
+    return mergeEnvAccount(result.rows.map(mapRowToAccount));
+  }
+
   if (!hasSupabaseServiceEnv()) {
     return mergeEnvAccount([]);
   }
@@ -82,6 +97,20 @@ export async function getAccount(userId: string, id: string): Promise<MailAccoun
   const envAccount = getEnvBackedAccount();
   if (envAccount?.id === id) {
     return envAccount;
+  }
+
+  if (hasDatabaseUrl()) {
+    const result = await dbQuery<MailAccountRow>(
+      `
+        select id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        from public.mail_accounts
+        where user_id = $1::uuid and id = $2::uuid
+        limit 1
+      `,
+      [userId, id]
+    );
+
+    return result.rows[0] ? mapRowToAccount(result.rows[0]) : undefined;
   }
 
   if (!hasSupabaseServiceEnv()) {
@@ -115,6 +144,37 @@ export async function createAccount(
     password?: string;
   }
 ): Promise<MailAccount | undefined> {
+  if (hasDatabaseUrl()) {
+    const name = input.name.trim();
+    const email = input.email.trim();
+    const imapHost = input.imapHost.trim();
+    const smtpHost = input.smtpHost.trim();
+
+    if (!name || !email || !imapHost || !smtpHost) {
+      return undefined;
+    }
+
+    try {
+      const result = await dbQuery<MailAccountRow>(
+        `
+          insert into public.mail_accounts (
+            user_id, name, email, imap_host, imap_port, smtp_host, smtp_port
+          )
+          values ($1::uuid, $2::text, $3::text, $4::text, $5::integer, $6::text, $7::integer)
+          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        `,
+        [userId, name, email, imapHost, input.imapPort, smtpHost, input.smtpPort]
+      );
+
+      const account = mapRowToAccount(result.rows[0]);
+      if (input.password?.trim()) account.passwordStored = true;
+      return account;
+    } catch (error) {
+      const pgError = error as { code?: string; message?: string };
+      throw mapSupabaseError("create account", { code: pgError.code ?? null, message: pgError.message ?? "Database error" });
+    }
+  }
+
   if (!hasSupabaseServiceEnv()) {
     return undefined;
   }
@@ -171,6 +231,67 @@ export async function updateAccount(
   const envAccount = getEnvBackedAccount();
   if (envAccount?.id === id) {
     return undefined;
+  }
+
+  if (hasDatabaseUrl()) {
+    const updates: string[] = [];
+    const values: unknown[] = [userId, id];
+    let index = 3;
+
+    if (input.name?.trim()) {
+      updates.push(`name = $${index++}::text`);
+      values.push(input.name.trim());
+    }
+    if (input.email?.trim()) {
+      updates.push(`email = $${index++}::text`);
+      values.push(input.email.trim());
+    }
+    if (input.imapHost?.trim()) {
+      updates.push(`imap_host = $${index++}::text`);
+      values.push(input.imapHost.trim());
+    }
+    if (typeof input.imapPort === "number" && Number.isFinite(input.imapPort)) {
+      updates.push(`imap_port = $${index++}::integer`);
+      values.push(input.imapPort);
+    }
+    if (input.smtpHost?.trim()) {
+      updates.push(`smtp_host = $${index++}::text`);
+      values.push(input.smtpHost.trim());
+    }
+    if (typeof input.smtpPort === "number" && Number.isFinite(input.smtpPort)) {
+      updates.push(`smtp_port = $${index++}::integer`);
+      values.push(input.smtpPort);
+    }
+
+    if (updates.length === 0) {
+      return getAccount(userId, id);
+    }
+
+    try {
+      const result = await dbQuery<MailAccountRow>(
+        `
+          update public.mail_accounts
+          set ${updates.join(", ")}, updated_at = timezone('utc', now())
+          where user_id = $1::uuid and id = $2::uuid
+          returning id, name, email, imap_host, imap_port, smtp_host, smtp_port, encrypted_secret
+        `,
+        values
+      );
+
+      if (!result.rows[0]) {
+        return undefined;
+      }
+
+      const account = mapRowToAccount(result.rows[0]);
+      if (input.password !== undefined) {
+        account.passwordStored = Boolean(input.password.trim()) || account.passwordStored;
+      }
+
+      return account;
+    } catch (error) {
+      const pgError = error as { code?: string; message?: string };
+      throw mapSupabaseError("update account", { code: pgError.code ?? null, message: pgError.message ?? "Database error" });
+    }
   }
 
   if (!hasSupabaseServiceEnv()) {

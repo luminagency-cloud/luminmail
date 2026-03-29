@@ -42,16 +42,18 @@ When the `DEV_MAIL_ACCOUNT_*` variables are present, the app loads that mailbox 
 
 1. Create a Supabase project.
 2. Open the SQL editor and run the latest migration in `supabase/migrations/`.
-3. Copy the project URL, anon key, and service role key into `.env.local`.
+3. Copy the project URL, anon key, service role key, and server-side Postgres connection string into `.env.local`.
 4. Create your first auth user from the app at `/login` or in the Supabase Auth dashboard.
 5. If you ran an older version of the schema already, rerun the latest migration so `public.users` and the `mail_accounts.user_id` ownership model are created.
 
 Going forward, treat `supabase/migrations/*.sql` as the source of truth for DB changes and `docs/schema.md` as the readable model reference.
 
+For backend writes and logging, prefer `SUPABASE_DB_URL` so server operations do not depend on the Supabase Data API schema cache.
+
 ## Vercel setup
 
 1. Create a Vercel project from this repo.
-2. Add the same environment variables from `.env.local` into the Vercel project settings.
+2. Add the same environment variables from `.env.local` into the Vercel project settings, including `SUPABASE_DB_URL`.
 3. For production, do not use `DEV_MAIL_ACCOUNT_*`; those are for local development only.
 
 ## Next recommended build steps
