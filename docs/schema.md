@@ -60,7 +60,7 @@ Important columns:
 Notes:
 - This table represents mailbox connections, not app login identities.
 - One app user can own many mail accounts.
-- `encrypted_secret` and `secret_iv` are reserved for real credential storage and are not fully wired yet.
+- `encrypted_secret` and `secret_iv` store the encrypted mailbox password and IV used for IMAP/SMTP operations.
 
 ### `public.mail_folders`
 
@@ -121,6 +121,10 @@ Important columns:
 - `status`
 - `updated_at`
 
+Notes:
+- The table exists in the baseline schema but cursor-based sync is not wired yet.
+- Current sync still rescans recent inbox mail and then upserts into `public.messages`.
+
 ### `public.send_log`
 
 Outgoing send attempts and delivery failures.
@@ -152,6 +156,7 @@ Important columns:
 Notes:
 - This is intended for operational debugging while the product is still early.
 - It stores structured error/event records you can inspect directly in the database.
+- Runtime logs are still the primary source when DB logging itself is impaired.
 
 ## Triggers and functions
 
@@ -176,6 +181,6 @@ Going forward:
 
 The current baseline schema lives in:
 
-- `supabase/migrations/20260328_0001_initial_app_schema.sql`
+- `supabase/migrations/20260329_0001_baseline.sql`
 
 Future schema changes should be incremental migration files after that.

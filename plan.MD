@@ -1,49 +1,46 @@
 # LuminMail Build Plan
 
-## Current repo state as of 2026-03-28
+## Current repo state as of 2026-03-29
 
 Implemented now:
 - Next.js 16 app shell with inbox and account settings UI
-- Supabase Auth login/signup flow at `/login`
+- Supabase Auth login/signup flow at `/`
 - Protected routes and APIs via `proxy.ts`
 - Supabase server/browser/admin client helpers
 - `public.users` app-user layer resolved from `auth.users`
 - `mail_accounts` schema and DB-backed account create/read/update APIs owned by `public.users.id`
 - Account switcher that clearly shows active account name + email
 - Dev-only `.env.local` mailbox account injection for local testing
-- Mock message APIs for read, delete, and reply UI iteration
+- Encrypted mailbox password storage via `MAIL_SECRET_KEY`
+- Live IMAP header sync into `messages` and `threads`
+- Provider-backed delete/move-to-trash attempt over IMAP
+- Live SMTP reply/send through stored mailbox credentials
+- Protected sync route for cron-triggered mailbox refresh
 
 Not implemented yet:
-- IMAP connectivity and background sync
-- SMTP delivery
-- Credential encryption/persistence
-- Real message/thread/folder persistence wiring
-- Connection testing endpoint
+- Durable queue/worker orchestration beyond cron-triggered sync
+- `send_log` persistence for SMTP attempts
+- `sync_state` cursor-based incremental sync
+- Folder mapping beyond `INBOX`
+- Robust provider-specific trash/special-folder handling
 - Security hardening beyond basic route protection
 
 ## Recommended next milestone
 
-### Milestone 1: live account connectivity
-1. Add encrypted credential storage for manual accounts
-2. Add `POST /api/accounts/test` for IMAP + SMTP connection verification
-3. Surface connection status in account settings
-4. Keep the env-backed mailbox as the initial live test target
+### Milestone 1: mail pipeline hardening
+1. Persist `send_log` for every SMTP attempt and failure
+2. Write `sync_state` cursors so sync stops rescanning the last 25 inbox messages every time
+3. Add folder discovery and special-folder mapping, especially trash resolution
+4. Decide whether full message bodies stay inline in `messages` or move to a separate body store
 
-### Milestone 2: live inbox sync
-1. Add IMAP folder discovery and mailbox mapping
-2. Sync inbox headers into `messages` and `threads`
-3. Replace mock `/api/messages` list with Supabase-backed data
-4. Keep full message body fetch on demand at first
+### Milestone 2: sync execution
+1. Keep the cron route, but move sync fan-out into a worker-safe execution model
+2. Add per-account locking so overlapping syncs do not race
+3. Add retry/backoff and clearer operational status in the UI
 
-### Milestone 3: send pipeline
-1. Add SMTP send endpoint
-2. Persist `send_log`
-3. Set `In-Reply-To` and `References`
-4. Surface retry/error states in the UI
-
-### Milestone 4: hardening
+### Milestone 3: hardening
 1. RLS policies for all app tables
-2. Credential encryption at rest
+2. Secret rotation path for encrypted mailbox credentials
 3. HTML sanitization
 4. Audit logging, rate limits, and provider-specific retry logic
 
@@ -60,12 +57,15 @@ Not implemented yet:
 - App users are now distinct from auth identities
 - Account persistence is real and writes to Supabase under the app-user model
 - The active-account UX is worth building on
+- Mailbox passwords are encrypted before DB storage
+- Inbox listing is live against IMAP-backed cached data
+- Reply/send and delete now attempt real provider operations
 
 ### What not to trust yet
-- Message APIs are still mock-only
-- Account passwords are not actually stored securely yet
-- `passwordStored` is currently only a UI flag, not proof of encrypted persistence
-- The current schema exists, but policies and secret-handling are still incomplete
+- Sync currently rescans recent inbox mail instead of using durable cursors
+- Special-folder mapping is still naive
+- `send_log` is not populated yet
+- The current schema exists, but policies and hardening are still incomplete
 
 ### Schema note
 - Re-run the latest file in `supabase/migrations/` in any environment created before this refactor

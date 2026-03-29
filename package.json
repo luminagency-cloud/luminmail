@@ -1,18 +1,17 @@
 {
   "name": "luminmail",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit -p tsconfig.lint.json",
     "version:check": "node scripts/check-version.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.100.1",
-    "@types/pg": "^8.20.0",
     "imapflow": "^1.2.18",
     "mailparser": "^3.9.6",
     "next": "^16.2.1",
@@ -25,6 +24,7 @@
     "@types/mailparser": "^3.4.6",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^7.0.11",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.0.0"

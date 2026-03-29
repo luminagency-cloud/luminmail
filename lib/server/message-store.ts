@@ -1,18 +1,10 @@
 import { simpleParser, type ParsedMail } from "mailparser";
 import { ImapFlow } from "imapflow";
+import nodemailer from "nodemailer";
 import type { MailMessage } from "@/lib/types/mail";
 import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
-import { decryptMailboxPassword } from "@/lib/server/mail-secrets";
 import { getAccount } from "@/lib/server/account-store";
-
-type AccountSecretRow = {
-  id: string;
-  email: string;
-  imap_host: string;
-  imap_port: number;
-  encrypted_secret: Buffer | null;
-  secret_iv: Buffer | null;
-};
+import { getDecryptedAccountCredentials } from "@/lib/server/account-credentials";
 
 type MessageRow = {
   id: string;
@@ -44,20 +36,6 @@ function mapMessageRow(row: MessageRow): MailMessage {
     receivedAt: row.received_at,
     unread: row.is_unread
   };
-}
-
-async function getAccountSecret(accountId: string) {
-  const result = await dbQuery<AccountSecretRow>(
-    `
-      select id, email, imap_host, imap_port, encrypted_secret, secret_iv
-      from public.mail_accounts
-      where id = $1::uuid
-      limit 1
-    `,
-    [accountId]
-  );
-
-  return result.rows[0] ?? null;
 }
 
 function toPreview(text: string) {
@@ -122,19 +100,18 @@ export async function syncInboxHeaders(userId: string, accountId: string) {
     return;
   }
 
-  const secretRow = await getAccountSecret(account.id);
-  if (!secretRow?.encrypted_secret || !secretRow.secret_iv) {
-    throw new Error("Mailbox password is not stored for this account. Re-save the account with a password.");
+  const credentials = await getDecryptedAccountCredentials(userId, account.id);
+  if (!credentials) {
+    throw new Error("Mailbox account not found.");
   }
 
-  const password = decryptMailboxPassword(secretRow.encrypted_secret, secretRow.secret_iv);
   const client = new ImapFlow({
-    host: account.imapHost,
-    port: account.imapPort,
-    secure: account.imapPort === 993,
+    host: credentials.imapHost,
+    port: credentials.imapPort,
+    secure: credentials.imapPort === 993,
     auth: {
-      user: account.email,
-      pass: password
+      user: credentials.email,
+      pass: credentials.password
     },
     logger: false
   });
@@ -254,6 +231,23 @@ export async function listMessages(userId: string, accountId?: string): Promise<
   return result.rows.map(mapMessageRow);
 }
 
+export async function syncAllAccounts() {
+  if (!hasDatabaseUrl()) return;
+
+  const result = await dbQuery<{ user_id: string; account_id: string }>(
+    `
+      select user_id, id as account_id
+      from public.mail_accounts
+      where encrypted_secret is not null
+      order by created_at asc
+    `
+  );
+
+  for (const row of result.rows) {
+    await syncInboxHeaders(row.user_id, row.account_id);
+  }
+}
+
 export async function markMessageRead(userId: string, id: string): Promise<MailMessage | undefined> {
   if (!hasDatabaseUrl()) return undefined;
 
@@ -275,6 +269,53 @@ export async function markMessageRead(userId: string, id: string): Promise<MailM
 
 export async function deleteMessage(userId: string, id: string): Promise<boolean> {
   if (!hasDatabaseUrl()) return false;
+
+  const source = await dbQuery<{
+    id: string;
+    mail_account_id: string;
+    provider_message_id: string;
+  }>(
+    `
+      select m.id, m.mail_account_id, m.provider_message_id
+      from public.messages m
+      join public.mail_accounts a on a.id = m.mail_account_id
+      where a.user_id = $1::uuid and m.id = $2::uuid
+      limit 1
+    `,
+    [userId, id]
+  );
+
+  const row = source.rows[0];
+  if (!row) return false;
+
+  const credentials = await getDecryptedAccountCredentials(userId, row.mail_account_id);
+  if (!credentials) return false;
+
+  const uid = Number(row.provider_message_id.split(":").pop());
+  const client = new ImapFlow({
+    host: credentials.imapHost,
+    port: credentials.imapPort,
+    secure: credentials.imapPort === 993,
+    auth: {
+      user: credentials.email,
+      pass: credentials.password
+    },
+    logger: false
+  });
+
+  try {
+    await client.connect();
+    await client.mailboxOpen("INBOX");
+    try {
+      await client.messageMove(uid, "Trash");
+    } catch {
+      await client.messageDelete(uid);
+    }
+  } finally {
+    try {
+      await client.logout();
+    } catch {}
+  }
 
   const result = await dbQuery(
     `
@@ -299,10 +340,12 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
     thread_id: string | null;
     subject: string;
     from_email: string | null;
+    message_id_header: string | null;
+    reference_headers: string[] | null;
     email: string;
   }>(
     `
-      select m.id, m.mail_account_id, m.thread_id, m.subject, m.from_email, a.email
+      select m.id, m.mail_account_id, m.thread_id, m.subject, m.from_email, m.message_id_header, m.reference_headers, a.email
       from public.messages m
       join public.mail_accounts a on a.id = m.mail_account_id
       where a.user_id = $1::uuid and m.id = $2::uuid
@@ -314,21 +357,47 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
   const row = source.rows[0];
   if (!row) return undefined;
 
+  const credentials = await getDecryptedAccountCredentials(userId, row.mail_account_id);
+  if (!credentials) return undefined;
+
+  const transporter = nodemailer.createTransport({
+    host: credentials.smtpHost,
+    port: credentials.smtpPort,
+    secure: credentials.smtpPort === 465,
+    auth: {
+      user: credentials.email,
+      pass: credentials.password
+    }
+  });
+
+  const referenceHeaders = [...(row.reference_headers ?? []), ...(row.message_id_header ? [row.message_id_header] : [])];
+  const send = await transporter.sendMail({
+    from: credentials.email,
+    to: row.from_email || undefined,
+    subject: row.subject.startsWith("Re:") ? row.subject : `Re: ${row.subject}`,
+    text: bodyText,
+    inReplyTo: row.message_id_header || undefined,
+    references: referenceHeaders.length > 0 ? referenceHeaders : undefined
+  });
+
   const result = await dbQuery<MessageRow>(
     `
       insert into public.messages (
-        mail_account_id, thread_id, provider_message_id, from_email, to_emails, subject, preview, body_text, received_at, is_unread
+        mail_account_id, thread_id, provider_message_id, message_id_header, in_reply_to, reference_headers, from_email, to_emails, subject, preview, body_text, received_at, is_unread
       )
       values (
-        $1::uuid, $2::uuid, $3::text, $4::text, $5::text[], $6::text, $7::text, $8::text, timezone('utc', now()), false
+        $1::uuid, $2::uuid, $3::text, $4::text, $5::text, $6::text[], $7::text, $8::text[], $9::text, $10::text, $11::text, timezone('utc', now()), false
       )
       returning id, mail_account_id as account_id, thread_id, subject, preview, body_text, received_at, is_unread, from_name, from_email, to_emails
     `,
     [
       row.mail_account_id,
       row.thread_id,
-      `LOCAL-REPLY:${Date.now()}`,
-      row.email,
+      send.messageId || `SMTP:${Date.now()}`,
+      send.messageId || null,
+      row.message_id_header || null,
+      referenceHeaders,
+      credentials.email,
       row.from_email ? [row.from_email] : [],
       row.subject.startsWith("Re:") ? row.subject : `Re: ${row.subject}`,
       toPreview(bodyText),
