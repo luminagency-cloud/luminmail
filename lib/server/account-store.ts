@@ -334,3 +334,39 @@ export async function updateAccount(
 
   return account;
 }
+
+export async function deleteAccount(userId: string, id: string): Promise<boolean> {
+  const envAccount = getEnvBackedAccount();
+  if (envAccount?.id === id) {
+    return false;
+  }
+
+  if (hasDatabaseUrl()) {
+    const result = await dbQuery(
+      `
+        delete from public.mail_accounts
+        where user_id = $1::uuid and id = $2::uuid
+      `,
+      [userId, id]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  if (!hasSupabaseServiceEnv()) {
+    return false;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { error, count } = await supabase
+    .from("mail_accounts")
+    .delete({ count: "exact" })
+    .eq("user_id", userId)
+    .eq("id", id);
+
+  if (error) {
+    throw mapSupabaseError("delete account", error);
+  }
+
+  return Boolean(count);
+}

@@ -4,6 +4,15 @@ import { signInAction, signUpAction } from "@/app/login/actions";
 import { getCurrentUser } from "@/lib/server/auth";
 import { hasSupabasePublicEnv } from "@/lib/supabase/env";
 
+function normalizeAuthMessage(message: string | undefined) {
+  if (!message) return null;
+
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) return "Invalid email or password.";
+  if (lower.includes("email not confirmed")) return "Check your inbox and confirm your account before signing in.";
+  return message;
+}
+
 export default async function HomePage({
   searchParams
 }: {
@@ -27,6 +36,7 @@ export default async function HomePage({
 
   const params = await searchParams;
   const next = params.next ?? "/inbox";
+  const errorMessage = normalizeAuthMessage(params.error);
 
   return (
     <main className="container authShell">
@@ -51,7 +61,7 @@ export default async function HomePage({
           </div>
         </div>
 
-        {params.error ? <p className="errorBanner">{params.error}</p> : null}
+        {errorMessage ? <p className="errorBanner">{errorMessage}</p> : null}
         {params.message ? <p className="successBanner">{params.message}</p> : null}
 
         <div className="authGrid">

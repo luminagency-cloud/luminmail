@@ -172,6 +172,10 @@ p {
   border: 1px solid #475569;
 }
 
+.dangerButton {
+  background: rgba(127, 29, 29, 0.85);
+}
+
 .secondaryButton:disabled,
 button:disabled,
 input:disabled {
@@ -257,6 +261,22 @@ input:disabled {
 .successBanner {
   background: rgba(20, 83, 45, 0.35);
   border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+.connectionResult {
+  margin-top: 1rem;
+  border: 1px solid rgba(71, 85, 105, 0.42);
+  background: rgba(9, 15, 28, 0.9);
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+.successText {
+  color: #86efac;
+}
+
+.errorText {
+  color: #fca5a5;
 }
 
 @media (max-width: 800px) {

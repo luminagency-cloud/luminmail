@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import type { MailAccount } from "@/lib/types/account";
+import type { AccountTestResult } from "@/lib/types/account-test";
 
 type AccountsResponse = { accounts: MailAccount[] };
 
@@ -30,8 +31,11 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<MailAccount[]>([]);
   const [draft, setDraft] = useState<AccountDraft>(emptyDraft);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
+  const [createTestResult, setCreateTestResult] = useState<AccountTestResult | null>(null);
+  const [accountTestResults, setAccountTestResults] = useState<Record<string, AccountTestResult | undefined>>({});
 
   async function loadAccounts() {
     const res = await fetch("/api/accounts");
@@ -54,6 +58,8 @@ export default function AccountsPage() {
     event.preventDefault();
     setPageError(null);
     setPageMessage(null);
+    setCreateTestResult(null);
+    setCreating(true);
 
     const res = await fetch("/api/accounts", {
       method: "POST",
@@ -68,14 +74,22 @@ export default function AccountsPage() {
         password: draft.password
       })
     });
+    setCreating(false);
 
     if (!res.ok) {
-      const payload = (await res.json().catch(() => ({ error: "Unable to create account" }))) as { error?: string };
+      const payload = (await res.json().catch(() => ({ error: "Unable to create account" }))) as {
+        error?: string;
+        result?: AccountTestResult;
+      };
+      if (payload.result) {
+        setCreateTestResult(payload.result);
+      }
       setPageError(payload.error ?? "Unable to create account.");
       return;
     }
 
     setDraft(emptyDraft);
+    setCreateTestResult(null);
     setPageMessage("Account saved.");
     await loadAccounts();
   }
@@ -99,11 +113,33 @@ export default function AccountsPage() {
     });
     setSavingId(null);
     if (!res.ok) {
-      const payload = (await res.json().catch(() => ({ error: "Unable to update account" }))) as { error?: string };
+      const payload = (await res.json().catch(() => ({ error: "Unable to update account" }))) as {
+        error?: string;
+        result?: AccountTestResult;
+      };
+      if (payload.result) {
+        setAccountTestResults((current) => ({ ...current, [account.id]: payload.result }));
+      }
       setPageError(payload.error ?? "Unable to update account.");
       return;
     }
+    setAccountTestResults((current) => ({ ...current, [account.id]: undefined }));
     setPageMessage("Account updated.");
+    await loadAccounts();
+  }
+
+  async function deleteExistingAccount(id: string) {
+    setPageError(null);
+    setPageMessage(null);
+
+    const res = await fetch(`/api/accounts/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({ error: "Unable to delete account" }))) as { error?: string };
+      setPageError(payload.error ?? "Unable to delete account.");
+      return;
+    }
+
+    setPageMessage("Account deleted.");
     await loadAccounts();
   }
 
@@ -113,7 +149,7 @@ export default function AccountsPage() {
         <div>
           <p className="eyebrow">Account settings</p>
           <h1>Mail accounts</h1>
-          <p className="muted">Every account has a display name and an email address, both editable.</p>
+          <p className="muted">Create, validate, edit, or delete connected mailboxes.</p>
         </div>
         <div className="topbarActions">
           <Link className="buttonLink secondaryButton" href="/inbox">
@@ -201,15 +237,16 @@ export default function AccountsPage() {
             <input
               id="new-account-password"
               onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-              placeholder="Stored locally for now"
+              placeholder="Password used for connection testing"
               type="password"
               value={draft.password}
             />
           </div>
-          <div>
-            <button type="submit">Create account</button>
+          <div className="actions">
+            <button type="submit">{creating ? "Validating..." : "Create account"}</button>
           </div>
         </form>
+        {createTestResult ? <ConnectionResult result={createTestResult} /> : null}
       </section>
 
       <section className="panel stack-md">
@@ -218,7 +255,9 @@ export default function AccountsPage() {
           <AccountEditor
             account={account}
             key={account.id}
+            onDelete={deleteExistingAccount}
             onSave={saveAccount}
+            result={accountTestResults[account.id] ?? null}
             saving={savingId === account.id}
             title={`Account ${index + 1}`}
           />
@@ -230,12 +269,16 @@ export default function AccountsPage() {
 
 function AccountEditor({
   account,
+  onDelete,
   onSave,
+  result,
   saving,
   title
 }: {
   account: MailAccount;
+  onDelete: (id: string) => Promise<void>;
   onSave: (account: AccountDraft & { id: string }) => Promise<void>;
+  result: AccountTestResult | null;
   saving: boolean;
   title: string;
 }) {
@@ -351,11 +394,25 @@ function AccountEditor({
           />
         </div>
       </div>
-      <div>
+      <div className="actions">
         <button disabled={account.source === "env"} onClick={() => void onSave({ ...draft, id: account.id })} type="button">
           {saving ? "Saving..." : "Save changes"}
         </button>
+        <button className="dangerButton" disabled={account.source === "env"} onClick={() => void onDelete(account.id)} type="button">
+          Delete account
+        </button>
       </div>
+      {result ? <ConnectionResult result={result} /> : null}
+    </div>
+  );
+}
+
+function ConnectionResult({ result }: { result: AccountTestResult }) {
+  return (
+    <div className="connectionResult stack-sm">
+      <p className="eyebrow">Connection test</p>
+      <p className={result.imap.ok ? "successText" : "errorText"}>IMAP: {result.imap.message}</p>
+      <p className={result.smtp.ok ? "successText" : "errorText"}>SMTP: {result.smtp.message}</p>
     </div>
   );
 }
