@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { getAppUrl } from "@/lib/server/app-url";
 import { logAppEvent } from "@/lib/server/error-log";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -32,6 +33,10 @@ export async function signInAction(formData: FormData) {
       redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     await logAppEvent({
       scope: "auth.sign_in.unhandled",
       message: error instanceof Error ? error.message : "Unhandled sign-in failure",
@@ -67,6 +72,10 @@ export async function signUpAction(formData: FormData) {
       redirect(next || "/inbox");
     }
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     await logAppEvent({
       scope: "auth.sign_up.unhandled",
       message: error instanceof Error ? error.message : "Unhandled sign-up failure",
@@ -104,6 +113,10 @@ export async function resendConfirmationAction(formData: FormData) {
       redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     await logAppEvent({
       scope: "auth.resend_confirmation.unhandled",
       message: error instanceof Error ? error.message : "Unhandled resend confirmation failure",
@@ -135,6 +148,10 @@ export async function signOutAction() {
       });
     }
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     await logAppEvent({
       scope: "auth.sign_out.unhandled",
       message: error instanceof Error ? error.message : "Unhandled sign-out failure",
