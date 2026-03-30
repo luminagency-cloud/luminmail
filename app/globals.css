@@ -18,9 +18,9 @@ body {
 }
 
 .siteHeaderInner {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0.85rem 2rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -65,9 +65,10 @@ body {
 }
 
 .container {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 1.25rem 1.5rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
 }
 
 button {
@@ -140,8 +141,8 @@ p {
 
 .topbarActions {
   display: grid;
-  gap: 0.75rem;
-  min-width: 280px;
+  gap: 0.55rem;
+  min-width: 230px;
 }
 
 .grid {
@@ -171,7 +172,7 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .messageListScroll,
@@ -179,6 +180,14 @@ p {
   min-height: 0;
   overflow: auto;
   padding-right: 0.25rem;
+}
+
+.previewClamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .messageCard {
@@ -256,6 +265,15 @@ p {
   background: rgba(9, 15, 28, 0.9);
   border-radius: 16px;
   padding: 0.8rem;
+}
+
+.incomingThreadMessage {
+  border-color: rgba(71, 85, 105, 0.42);
+}
+
+.outgoingThreadMessage {
+  border-color: rgba(20, 184, 166, 0.45);
+  background: rgba(7, 38, 36, 0.88);
 }
 
 .threadMessageCard + .threadMessageCard {
@@ -359,7 +377,7 @@ input:disabled {
 }
 
 .authCard {
-  width: min(100%, 980px);
+  width: min(100%, 900px);
   border: 1px solid rgba(71, 85, 105, 0.5);
   background: rgba(5, 10, 20, 0.92);
   backdrop-filter: blur(16px);
@@ -445,17 +463,21 @@ input:disabled {
 
 @media (max-width: 800px) {
   .container {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .siteHeaderInner {
-    padding: 0.85rem 1rem;
+    padding: 0.65rem 0.75rem;
   }
 
   .siteHeaderActions,
   .siteBrand {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .siteNav {
+    gap: 0.5rem;
   }
 
   .topbar,
@@ -478,11 +500,23 @@ input:disabled {
 
   .messageListScroll,
   .readingPaneScroll {
+    max-height: none;
     overflow: visible;
   }
 
   .topbar {
     display: grid;
     align-items: stretch;
+  }
+
+  .messagePanelHeader,
+  .readingPaneHeader,
+  .threadMessageHeader {
+    display: grid;
+  }
+
+  .iconActionStack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
   }
 }

@@ -120,6 +120,10 @@ export default function InboxPage() {
 
   const selected = messages.find((message) => message.id === selectedId);
   const activeAccount = accounts.find((account) => account.id === activeAccountId);
+  const inboxMessages = useMemo(
+    () => messages.filter((message) => message.folderRole === "inbox" || Boolean(message.folderId)),
+    [messages]
+  );
   const threadMessages = useMemo(() => {
     if (!selected) {
       return [] as MailMessage[];
@@ -130,6 +134,7 @@ export default function InboxPage() {
     related.sort((left, right) => new Date(left.receivedAt).getTime() - new Date(right.receivedAt).getTime());
     return [selected, ...related];
   }, [messages, selected]);
+  const activeAccountEmail = activeAccount?.email.toLowerCase() ?? "";
 
   async function markRead() {
     if (!selected) return;
@@ -299,7 +304,7 @@ export default function InboxPage() {
             <div className="stack-sm">
               <h2>Messages</h2>
               <p className="muted">
-                {loadingMessages ? "Refreshing..." : `${messages.length} loaded`} {activeAccount ? `• every ${activeAccount.syncIntervalMinutes} min` : ""}
+                {loadingMessages ? "Refreshing..." : `${inboxMessages.length} loaded`} {activeAccount ? `• every ${activeAccount.syncIntervalMinutes} min` : ""}
               </p>
             </div>
             <Link className="buttonLink compactButton" href={activeAccountId ? `/compose?accountId=${encodeURIComponent(activeAccountId)}` : "/compose"}>
@@ -307,8 +312,8 @@ export default function InboxPage() {
             </Link>
           </div>
           <div className="messageListScroll">
-            {messages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}
-            {messages.map((message) => (
+            {inboxMessages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}
+            {inboxMessages.map((message) => (
               <button
                 className={`messageCard${message.id === selectedId ? " activeMessageCard" : ""}`}
                 key={message.id}
@@ -320,7 +325,7 @@ export default function InboxPage() {
                   {message.unread ? <span className="statusDot" aria-label="Unread" /> : null}
                 </span>
                 <span>{message.from}</span>
-                <span className="muted">{message.preview}</span>
+                <span className="muted previewClamp">{message.preview}</span>
               </button>
             ))}
           </div>
@@ -367,19 +372,26 @@ export default function InboxPage() {
               </div>
 
               <div className="readingPaneScroll" ref={readingPaneRef}>
-                {threadMessages.map((message, index) => (
-                  <article className={`threadMessageCard${index === 0 ? " currentThreadMessage" : ""}`} key={message.id}>
-                    <div className="threadMessageHeader">
-                      <div className="stack-sm">
-                        <strong>{message.from}</strong>
-                        <p className="muted">
-                          {new Date(message.receivedAt).toLocaleString()} {message.id === selected.id ? "• current message" : ""}
-                        </p>
+                {threadMessages.map((message, index) => {
+                  const isSentMessage = Boolean(activeAccountEmail) && message.fromEmail.toLowerCase() === activeAccountEmail;
+
+                  return (
+                    <article
+                      className={`threadMessageCard${index === 0 ? " currentThreadMessage" : ""}${isSentMessage ? " outgoingThreadMessage" : " incomingThreadMessage"}`}
+                      key={message.id}
+                    >
+                      <div className="threadMessageHeader">
+                        <div className="stack-sm">
+                          <strong>{isSentMessage ? "You" : message.from}</strong>
+                          <p className="muted">
+                            {new Date(message.receivedAt).toLocaleString()} {message.id === selected.id ? "• current message" : ""}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <p className="threadMessageBody">{message.bodyText}</p>
-                  </article>
-                ))}
+                      <p className="threadMessageBody">{message.bodyText}</p>
+                    </article>
+                  );
+                })}
               </div>
             </>
           ) : (

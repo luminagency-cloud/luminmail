@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requestPasswordResetAction, resendConfirmationAction, signInAction, signUpAction } from "@/app/login/actions";
 import { getCurrentUser } from "@/lib/server/auth";
@@ -147,13 +146,7 @@ export default async function HomePage({
           </form>
         </div>
 
-        <p className="muted">
-          Account records are stored in Supabase right now. Message sync and sending are still being wired up behind
-          this shell.
-        </p>
-        <p>
-          <Link href="/api/health">Health check</Link>
-        </p>
+        <p className="muted">Account records are stored in Supabase right now. Message sync and sending are now active in the app shell.</p>
       </section>
     </main>
   );

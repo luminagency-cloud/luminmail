@@ -18,17 +18,16 @@ export async function SiteHeader() {
 
         <div className="siteHeaderActions">
           <nav aria-label="Primary" className="siteNav">
-            <Link className="siteNavLink" href={user ? "/inbox" : "/"}>
-              {user ? "Inbox" : "Home"}
-            </Link>
-            {user ? (
-              <Link className="siteNavLink" href="/accounts">
-                Accounts
+            {!user ? (
+              <Link className="siteNavLink" href="/">
+                Home
               </Link>
             ) : null}
-            <Link className="siteNavLink" href="/about">
-              About
-            </Link>
+            {!user ? (
+              <Link className="siteNavLink" href="/about">
+                About
+              </Link>
+            ) : null}
           </nav>
 
           {user ? (

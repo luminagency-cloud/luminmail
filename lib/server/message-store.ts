@@ -19,6 +19,8 @@ type MessageRow = {
   from_name: string | null;
   from_email: string | null;
   to_emails: string[] | null;
+  folder_role: string | null;
+  folder_id: string | null;
 };
 
 type FolderRow = {
@@ -67,12 +69,15 @@ function mapMessageRow(row: MessageRow): MailMessage {
     accountId: row.account_id,
     threadId: row.thread_id ?? "",
     from,
+    fromEmail: row.from_email ?? "",
     to,
     subject: row.subject,
     preview: row.preview ?? "",
     bodyText: row.body_text ?? "",
     receivedAt: row.received_at,
-    unread: row.is_unread
+    unread: row.is_unread,
+    folderRole: row.folder_role ?? "",
+    folderId: row.folder_id ?? ""
   };
 }
 
@@ -193,7 +198,7 @@ async function createOutgoingMessageRecord(input: {
       values (
         $1::uuid, $2::uuid, $3::text, $4::text, $5::text, $6::text[], $7::text, $8::text[], $9::text, $10::text, $11::text, timezone('utc', now()), false
       )
-      returning id, mail_account_id as account_id, thread_id, subject, preview, body_text, received_at, is_unread, from_name, from_email, to_emails
+      returning id, mail_account_id as account_id, thread_id, subject, preview, body_text, received_at, is_unread, from_name, from_email, to_emails, ''::text as folder_role, null::uuid as folder_id
     `,
     [
       input.accountId,
@@ -568,9 +573,12 @@ export async function listMessages(userId: string, accountId?: string): Promise<
         m.is_unread,
         m.from_name,
         m.from_email,
-        m.to_emails
+        m.to_emails,
+        f.role as folder_role,
+        m.folder_id
       from public.messages m
       join public.mail_accounts a on a.id = m.mail_account_id
+      left join public.mail_folders f on f.id = m.folder_id
       where a.user_id = $1::uuid
         and m.mail_account_id = $2::uuid
       order by m.received_at desc
@@ -628,7 +636,7 @@ export async function markMessageRead(userId: string, id: string): Promise<MailM
       where m.mail_account_id = a.id
         and a.user_id = $1::uuid
         and m.id = $2::uuid
-      returning m.id, m.mail_account_id as account_id, m.thread_id, m.subject, m.preview, m.body_text, m.received_at, m.is_unread, m.from_name, m.from_email, m.to_emails
+      returning m.id, m.mail_account_id as account_id, m.thread_id, m.subject, m.preview, m.body_text, m.received_at, m.is_unread, m.from_name, m.from_email, m.to_emails, ''::text as folder_role, null::uuid as folder_id
     `,
     [userId, id]
   );

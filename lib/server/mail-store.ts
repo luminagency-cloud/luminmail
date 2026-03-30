@@ -6,24 +6,30 @@ let messages: MailMessage[] = [
     accountId: "acct_work",
     threadId: "thread_abc",
     from: "Taylor <taylor@example.com>",
+    fromEmail: "taylor@example.com",
     to: "You <you@luminmail.dev>",
     subject: "Re: Launch checklist",
     preview: "Pushed final copy updates. Can you review before noon?",
     bodyText: "Hey — can you review the final draft before noon?",
     receivedAt: "2026-03-28T09:22:00Z",
-    unread: true
+    unread: true,
+    folderRole: "inbox",
+    folderId: "folder_inbox"
   },
   {
     id: "msg_002",
     accountId: "acct_personal",
     threadId: "thread_xyz",
     from: "Casey <casey@example.com>",
+    fromEmail: "casey@example.com",
     to: "Me <me@luminmail.dev>",
     subject: "Dinner tomorrow?",
     preview: "Want to grab dinner after work around 7?",
     bodyText: "Want to grab dinner after work around 7? I can book a table.",
     receivedAt: "2026-03-27T19:10:00Z",
-    unread: false
+    unread: false,
+    folderRole: "inbox",
+    folderId: "folder_inbox"
   }
 ];
 
@@ -54,12 +60,15 @@ export function replyToMessage(id: string, bodyText: string): MailMessage | unde
     accountId: source.accountId,
     threadId: source.threadId,
     from: "You <you@luminmail.dev>",
+    fromEmail: "you@luminmail.dev",
     to: source.from,
     subject: source.subject.startsWith("Re:") ? source.subject : `Re: ${source.subject}`,
     preview: bodyText.slice(0, 80),
     bodyText,
     receivedAt: new Date().toISOString(),
-    unread: false
+    unread: false,
+    folderRole: "",
+    folderId: ""
   };
 
   messages = [reply, ...messages];

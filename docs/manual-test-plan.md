@@ -63,7 +63,7 @@ If you created mailbox accounts before encrypted password storage was added, re-
 
 1. Open a real inbox message.
 2. Send a reply.
-3. Confirm the recipient receives it, the local thread view shows the outgoing message, and the saved account signature is appended when configured.
+3. Confirm the recipient receives it, the local thread view shows the outgoing message with distinct styling, and the saved account signature is appended when configured.
 4. Confirm a `public.send_log` row exists with status `sent`.
 5. Delete a synced message.
 6. Confirm it disappears from the app.
