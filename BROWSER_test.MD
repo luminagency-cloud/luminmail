@@ -1,71 +1,47 @@
-// LuminMail end-to-end test flow script
-// this is for puppeteer, need to see if Claud in Chrome can do it
-# Test idea
-I want you to create an account.
-Log in to it
-create 2 email accounts once in.
+LuminMail End-to-End Test Runbook
+App URL: https://luminmail.luminagency.com
+Last app version tested: v1.4.2
 
-send 3 or 4 emails between these accounts and reply from within the app.
-Switch to acct 1, send email to other; switch to Acct 3, reply to email, repeat.
+Run this in Claude for Chrome
 
-#test setup
-app is at luminmail.luminagency.com
+Prerequisites
+LuminMail App Account
 
-##login to app account
-luminagency@gmail.com
-pwd: L!@Jhereg12a
+Email: luminagency@gmail.com
+Password: L!@Jhereg12a
+(Account must already be confirmed via Supabase confirmation email)
 
-#test demo code
-import { test, expect } from '@playwright/test';
+Mail Accounts to Configure Inside the App
+AccountEmailPasswordIMAP HostIMAP PortSMTP HostSMTP PortDokksltest@dokks.comKy3359ebfimap.dokks.com993smtp.dokks.com587Luminltest@luminagency.comKy3359ebfimap.luminagency.com993smtp.luminagency.com587
 
- test.describe('LuminMail End-to-End Test Flow', () => {
-    test.beforeEach(async ({ page }) => {
-        // Navigate to the LuminMail webpage
-        await page.goto('https://luminmail.com');
-    });
+Step 1 — Sign Up (First Run Only)
 
-    test('User should be able to register', async ({ page }) => {
-        await page.click('text=Sign Up');
-        await page.fill('#email', 'user@example.com');
-        await page.fill('#password', 'securePassword123');
-        await page.click('button[type="submit"]');
+Go to https://luminmail.luminagency.com
+Under New Account / Sign up, enter email and password, click Sign up
+Check the Gmail inbox for a Supabase confirmation email and click the link
+You will be redirected back and logged in automatically
 
-        const successMessage = await page.locator('text=Registration successful');
-        await expect(successMessage).toBeVisible();
-    });
 
-    test('User should be able to log in', async ({ page }) => {
-        await page.click('text=Log In');
-        await page.fill('#email', 'user@example.com');
-        await page.fill('#password', 'securePassword123');
-        await page.click('button[type="submit"]');
+Step 2 — Sign In (Subsequent Runs)
 
-        const dashboard = await page.locator('text=Welcome to LuminMail');
-        await expect(dashboard).toBeVisible();
-    });
+Go to https://luminmail.luminagency.com
+Under Existing Account / Sign in, enter email and password, click Sign in
 
-    test('User should be able to send an email', async ({ page }) => {
-        await page.click('text=Compose');
-        await page.fill('#to', 'recipient@example.com');
-        await page.fill('#subject', 'Test Email');
-        await page.fill('#body', 'This is a test email.');
-        await page.click('button[type="submit"]');
 
-        const emailSentMessage = await page.locator('text=Email sent successfully');
-        await expect(emailSentMessage).toBeVisible();
-    });
-});
+Step 3 — Add Mail Accounts
 
-#test data
+From the inbox, click Manage accounts
+For each account in the table above, fill in: Account name, Email address, IMAP host, IMAP port, SMTP host, SMTP port, Password
+Click Create account
+Confirm it appears under Existing accounts before adding the next one
 
-## Accounts to create and test with
-mail account 1: ltest@dokks.com
-mail account 2: ltest@luminagency.com
 
-username is the email address
-password for both: Ky3359ebf
+Step 4 — Send & Reply Test (4 Messages)
+StepActive AccountAction1Dokks (ltest@dokks.com)Click New email, set To: ltest@luminagency.com, write a subject and message, click Send email2Lumin (ltest@luminagency.com)Switch account via dropdown, wait for email to arrive, type a reply in the Reply box, click Send Reply3Dokks (ltest@dokks.com)Switch back, wait for reply to arrive, type a reply, click Send Reply4Lumin (ltest@luminagency.com)Switch back, wait for reply to arrive, type a final reply, click Send Reply
+Expected result: Each inbox shows all messages in the thread; both accounts send and receive correctly.
 
-###Server info
-imap.[domain].com port 993
-smtp.[domain].com port 587
+Notes
 
+The inbox polls every 15 minutes by default, but messages arrive immediately when the inbox is open
+Account switching is done via the Switch account dropdown on the inbox page
+The reply box is inline on the message view — no need to navigate away to reply
