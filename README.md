@@ -19,14 +19,14 @@ Built now:
 - Inbox message list backed by live IMAP header sync into `messages` and `threads`
 - Reply/send uses the connected account's SMTP credentials
 - Message delete attempts provider-side IMAP move-to-trash before removing local cache
-- Background mailbox sync route exists for cron-driven refreshes
+- Background mailbox sync route exists for cron-driven refreshes across all stored mail accounts
 - SMTP attempts are persisted to `public.send_log`
 - Mail sync progress is tracked in `public.sync_state`
 - Folder metadata is discovered from IMAP and used for trash-folder targeting
 - DB-only issue reporting from the inbox UI into `public.issue_reports`
 
 Still mocked or not done yet:
-- Durable worker/queue orchestration beyond cron-triggered sync
+- Durable worker/queue orchestration beyond the current global cron-triggered sync
 - Folder sync beyond `INBOX`
 - Rich HTML body rendering and sanitization hardening
 - RLS policies and hardening pass
@@ -68,12 +68,25 @@ For backend writes and logging, prefer `SUPABASE_DB_URL` so server operations do
 ## Vercel setup
 
 1. Create a Vercel project from this repo.
-2. Add the same environment variables from `.env.local` into the Vercel project settings, including `SUPABASE_DB_URL`, `MAIL_SECRET_KEY`, and `MAIL_SYNC_CRON_TOKEN`.
+2. Add the same environment variables from `.env.local` into the Vercel project settings, including `SUPABASE_DB_URL`, `MAIL_SECRET_KEY`, and either `CRON_SECRET` or `MAIL_SYNC_CRON_TOKEN`.
 3. For production, do not use `DEV_MAIL_ACCOUNT_*`; those are for local development only.
+
+## Sync behavior today
+
+- Opening an inbox can trigger an on-demand IMAP sync for the selected account.
+- The Vercel cron route is a global background sync. Each run iterates through every stored mail account in the database, not just the active user.
+- The current cron is best treated as a prototype "keep inboxes warm" mechanism, not a final per-user sync scheduler.
+
+## Future sync direction
+
+- Move sync fan-out into a worker-safe job model instead of one global route run.
+- Add overlap protection so the same account is not synced concurrently.
+- Add a user-facing sync preference so "how often to check email" becomes an account or user setting instead of a single app-wide cron schedule.
 
 ## Next recommended build steps
 
 1. Add folder-level sync beyond `INBOX`.
 2. Add overlap protection so the same account is not synced concurrently.
-3. Surface `send_log` and `sync_state` in the UI for debugging.
-4. Add RLS policies and secret-handling hardening.
+3. Turn sync frequency into a user/account setting instead of a single app-wide cron schedule.
+4. Surface `send_log` and `sync_state` in the UI for debugging.
+5. Add RLS policies and secret-handling hardening.

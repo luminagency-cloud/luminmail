@@ -15,13 +15,13 @@ Implemented now:
 - Live IMAP header sync into `messages` and `threads`
 - Provider-backed delete/move-to-trash attempt over IMAP
 - Live SMTP reply/send through stored mailbox credentials
-- Protected sync route for cron-triggered mailbox refresh
+- Protected sync route for cron-triggered mailbox refresh across all stored accounts
 - SMTP send attempts persisted to `public.send_log`
 - `sync_state` records inbox sync progress
 - Folder discovery persisted to `public.mail_folders` and used for trash resolution
 
 Not implemented yet:
-- Durable queue/worker orchestration beyond cron-triggered sync
+- Durable queue/worker orchestration beyond the current global cron-triggered sync
 - Folder sync beyond `INBOX`
 - Sync overlap locking
 - Robust provider-specific trash/special-folder handling
@@ -34,11 +34,13 @@ Not implemented yet:
 2. Add per-account overlap protection so cron and request-driven sync cannot race
 3. Decide whether full message bodies stay inline in `messages` or move to a separate body store
 4. Add a small admin/debug surface for `send_log` and `sync_state`
+5. Define how a user-configurable "check email frequency" setting maps to background sync
 
 ### Milestone 2: sync execution
-1. Keep the cron route, but move sync fan-out into a worker-safe execution model
+1. Keep the cron route temporarily, but move sync fan-out into a worker-safe execution model
 2. Add per-account locking so overlapping syncs do not race
-3. Add retry/backoff and clearer operational status in the UI
+3. Replace the single global cadence with a user/account-level sync preference
+4. Add retry/backoff and clearer operational status in the UI
 
 ### Milestone 3: hardening
 1. RLS policies for all app tables
@@ -63,10 +65,12 @@ Not implemented yet:
 - Inbox listing is live against IMAP-backed cached data
 - Reply/send and delete now attempt real provider operations
 - `send_log` and `sync_state` are now populated by the live mail paths
+- The current background sync path is global, not user-scoped
 
 ### What not to trust yet
 - Sync is still limited to `INBOX`
 - Sync can still overlap if multiple requests hit the same account at once
+- Background sync cadence is still app-wide, not a user setting
 - Special-folder handling is better, but still depends on provider conventions
 - The current schema exists, but policies and hardening are still incomplete
 

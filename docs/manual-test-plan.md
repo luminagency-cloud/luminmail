@@ -18,6 +18,8 @@ Confirm these environment variables exist in both local and Vercel:
 - `MAIL_SECRET_KEY`
 - `MAIL_SYNC_CRON_TOKEN`
 
+If you use Vercel Cron, `CRON_SECRET` may be used instead of `MAIL_SYNC_CRON_TOKEN`.
+
 If you created mailbox accounts before encrypted password storage was added, re-save each account with its password or delete and recreate it before testing sync, reply, or delete.
 
 ## Auth flow
@@ -79,11 +81,12 @@ If you created mailbox accounts before encrypted password storage was added, re-
 
 ## Background sync route
 
-1. Send a `POST` request to `/api/messages/sync` with header `Authorization: Bearer <MAIL_SYNC_CRON_TOKEN>`.
+1. Send a `GET` or `POST` request to `/api/messages/sync` with header `Authorization: Bearer <CRON_SECRET or MAIL_SYNC_CRON_TOKEN>`.
 2. Confirm the route returns `200`.
 3. Confirm runtime logs show a completed sync event.
 4. Confirm `public.sync_state` has `last_synced_at`, `uid_validity`, and `last_seen_uid` populated for the inbox folder.
 5. Confirm a request without the token returns `401`.
+6. Remember that one route call currently fans out across every stored mail account in the database, not just the current user.
 
 ## Known caveat to watch
 

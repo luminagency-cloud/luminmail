@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { syncAllAccounts } from "@/lib/server/message-store";
 import { logAppEvent } from "@/lib/server/error-log";
 
-export async function POST(request: Request) {
+function getCronToken() {
+  return process.env.CRON_SECRET ?? process.env.MAIL_SYNC_CRON_TOKEN;
+}
+
+async function handleSync(request: Request) {
   const authHeader = request.headers.get("authorization");
-  const token = process.env.MAIL_SYNC_CRON_TOKEN;
+  const token = getCronToken();
 
   if (!token || authHeader !== `Bearer ${token}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,4 +35,12 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: Request) {
+  return handleSync(request);
+}
+
+export async function POST(request: Request) {
+  return handleSync(request);
 }

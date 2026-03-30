@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { AuthStatus } from "@/components/auth-status";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,14 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <header className="siteHeader">
-          <div className="siteHeaderInner">
-            <div>
-              <p className="eyebrow">LuminMail</p>
-            </div>
-            <AuthStatus />
-          </div>
-        </header>
+        <SiteHeader />
         {children}
       </body>
     </html>

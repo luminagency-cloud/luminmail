@@ -25,6 +25,43 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.siteBrand,
+.siteHeaderActions,
+.siteNav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.siteBrandLink,
+.siteNavLink {
+  text-decoration: none;
+}
+
+.siteNav {
+  flex-wrap: wrap;
+}
+
+.siteNavLink {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.siteNavLink:hover,
+.siteBrandLink:hover {
+  color: #67e8f9;
+}
+
+.versionBadge {
+  border: 1px solid rgba(103, 232, 249, 0.4);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.78rem;
+  color: #67e8f9;
+  background: rgba(8, 15, 29, 0.72);
 }
 
 .container {
@@ -293,6 +330,29 @@ input:disabled {
   place-items: center;
 }
 
+.aboutCard {
+  max-width: 42rem;
+  margin: 2rem 0;
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  background: rgba(5, 10, 20, 0.92);
+  backdrop-filter: blur(16px);
+  border-radius: 28px;
+  padding: 1.75rem;
+  box-shadow: 0 24px 80px rgba(2, 8, 23, 0.45);
+}
+
+.aboutMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.aboutVersion {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
 .authCard {
   width: min(100%, 980px);
   border: 1px solid rgba(71, 85, 105, 0.5);
@@ -379,10 +439,17 @@ input:disabled {
     padding: 0.85rem 1rem;
   }
 
+  .siteHeaderActions,
+  .siteBrand {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .topbar,
   .grid,
   .formGrid,
-  .authGrid {
+  .authGrid,
+  .aboutMeta {
     grid-template-columns: 1fr;
   }
 
