@@ -1,4 +1,5 @@
 // LuminMail end-to-end test flow script
+// this is fopr puppeteer, need to see if Claud in Chrome can do it
 
 import { test, expect } from '@playwright/test';
 
