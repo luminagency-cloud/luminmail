@@ -22,6 +22,11 @@ export async function SiteHeader() {
               {user ? "Inbox" : "Home"}
             </Link>
             {user ? (
+              <Link className="siteNavLink" href="/compose">
+                Compose
+              </Link>
+            ) : null}
+            {user ? (
               <Link className="siteNavLink" href="/accounts">
                 Accounts
               </Link>

@@ -36,7 +36,8 @@ export default function InboxPage() {
 
       const payload = (await res.json()) as AccountsResponse;
       setAccounts(payload.accounts);
-      setActiveAccountId((current) => current || payload.accounts[0]?.id || "");
+      const requestedAccountId = new URLSearchParams(window.location.search).get("accountId");
+      setActiveAccountId((current) => current || requestedAccountId || payload.accounts[0]?.id || "");
     }
 
     void loadAccounts();
@@ -243,6 +244,9 @@ export default function InboxPage() {
           </select>
           <Link className="buttonLink secondaryButton" href="/accounts">
             Manage accounts
+          </Link>
+          <Link className="buttonLink" href={activeAccountId ? `/compose?accountId=${encodeURIComponent(activeAccountId)}` : "/compose"}>
+            New email
           </Link>
           <button className="secondaryButton" onClick={() => setShowIssueForm((current) => !current)} type="button">
             {showIssueForm ? "Close issue report" : "Report an issue"}

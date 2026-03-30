@@ -173,6 +173,117 @@ async function ensureThread(accountId: string, threadKey: string, subject: strin
   return result.rows[0].id;
 }
 
+async function createOutgoingMessageRecord(input: {
+  accountId: string;
+  threadId: string | null;
+  providerMessageId: string;
+  messageIdHeader: string | null;
+  inReplyTo: string | null;
+  referenceHeaders: string[] | null;
+  fromEmail: string;
+  toEmails: string[];
+  subject: string;
+  bodyText: string;
+}) {
+  const result = await dbQuery<MessageRow>(
+    `
+      insert into public.messages (
+        mail_account_id, thread_id, provider_message_id, message_id_header, in_reply_to, reference_headers, from_email, to_emails, subject, preview, body_text, received_at, is_unread
+      )
+      values (
+        $1::uuid, $2::uuid, $3::text, $4::text, $5::text, $6::text[], $7::text, $8::text[], $9::text, $10::text, $11::text, timezone('utc', now()), false
+      )
+      returning id, mail_account_id as account_id, thread_id, subject, preview, body_text, received_at, is_unread, from_name, from_email, to_emails
+    `,
+    [
+      input.accountId,
+      input.threadId,
+      input.providerMessageId,
+      input.messageIdHeader,
+      input.inReplyTo,
+      input.referenceHeaders,
+      input.fromEmail,
+      input.toEmails,
+      input.subject,
+      toPreview(input.bodyText),
+      input.bodyText
+    ]
+  );
+
+  return result.rows[0] ? mapMessageRow(result.rows[0]) : undefined;
+}
+
+async function sendOutboundMessage(input: {
+  userId: string;
+  accountId: string;
+  threadId: string | null;
+  toEmails: string[];
+  subject: string;
+  bodyText: string;
+  inReplyTo?: string | null;
+  referenceHeaders?: string[] | null;
+}) {
+  const credentials = await getDecryptedAccountCredentials(input.userId, input.accountId);
+  if (!credentials) {
+    throw new Error("Mailbox account not found.");
+  }
+
+  const outgoingBody = applySignature(input.bodyText, credentials.signature);
+  const transporter = nodemailer.createTransport({
+    host: credentials.smtpHost,
+    port: credentials.smtpPort,
+    secure: credentials.smtpPort === 465,
+    auth: {
+      user: credentials.email,
+      pass: credentials.password
+    }
+  });
+
+  try {
+    const send = await transporter.sendMail({
+      from: credentials.email,
+      to: input.toEmails,
+      subject: input.subject,
+      text: outgoingBody,
+      inReplyTo: input.inReplyTo || undefined,
+      references: input.referenceHeaders?.length ? input.referenceHeaders : undefined
+    });
+
+    await insertSendLog({
+      accountId: input.accountId,
+      threadId: input.threadId,
+      toEmails: input.toEmails,
+      subject: input.subject,
+      bodyText: outgoingBody,
+      status: "sent"
+    });
+
+    return createOutgoingMessageRecord({
+      accountId: input.accountId,
+      threadId: input.threadId,
+      providerMessageId: send.messageId || `SMTP:${Date.now()}`,
+      messageIdHeader: send.messageId || null,
+      inReplyTo: input.inReplyTo ?? null,
+      referenceHeaders: input.referenceHeaders ?? null,
+      fromEmail: credentials.email,
+      toEmails: input.toEmails,
+      subject: input.subject,
+      bodyText: outgoingBody
+    });
+  } catch (error) {
+    await insertSendLog({
+      accountId: input.accountId,
+      threadId: input.threadId,
+      toEmails: input.toEmails,
+      subject: input.subject,
+      bodyText: outgoingBody,
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message : "SMTP send failed."
+    });
+    throw error;
+  }
+}
+
 async function getSyncState(accountId: string, folderId: string) {
   const result = await dbQuery<SyncStateRow>(
     `
@@ -620,78 +731,51 @@ export async function replyToMessage(userId: string, id: string, bodyText: strin
   const row = source.rows[0];
   if (!row) return undefined;
 
-  const credentials = await getDecryptedAccountCredentials(userId, row.mail_account_id);
-  if (!credentials) return undefined;
-
   const subject = row.subject.startsWith("Re:") ? row.subject : `Re: ${row.subject}`;
-  const outgoingBody = applySignature(bodyText, credentials.signature);
   const toEmails = row.from_email ? [row.from_email] : [];
   const referenceHeaders = [...(row.reference_headers ?? []), ...(row.message_id_header ? [row.message_id_header] : [])];
-  const transporter = nodemailer.createTransport({
-    host: credentials.smtpHost,
-    port: credentials.smtpPort,
-    secure: credentials.smtpPort === 465,
-    auth: {
-      user: credentials.email,
-      pass: credentials.password
-    }
+  return sendOutboundMessage({
+    userId,
+    accountId: row.mail_account_id,
+    threadId: row.thread_id,
+    toEmails,
+    subject,
+    bodyText,
+    inReplyTo: row.message_id_header || null,
+    referenceHeaders
   });
+}
 
-  try {
-    const send = await transporter.sendMail({
-      from: credentials.email,
-      to: row.from_email || undefined,
-      subject,
-      text: outgoingBody,
-      inReplyTo: row.message_id_header || undefined,
-      references: referenceHeaders.length > 0 ? referenceHeaders : undefined
-    });
+export async function composeMessage(input: {
+  userId: string;
+  accountId: string;
+  to: string;
+  subject: string;
+  bodyText: string;
+}): Promise<MailMessage | undefined> {
+  if (!hasDatabaseUrl()) return undefined;
 
-    await insertSendLog({
-      accountId: row.mail_account_id,
-      threadId: row.thread_id,
-      toEmails,
-      subject,
-      bodyText: outgoingBody,
-      status: "sent"
-    });
+  const account = await getAccount(input.userId, input.accountId);
+  if (!account) return undefined;
 
-    const result = await dbQuery<MessageRow>(
-      `
-        insert into public.messages (
-          mail_account_id, thread_id, provider_message_id, message_id_header, in_reply_to, reference_headers, from_email, to_emails, subject, preview, body_text, received_at, is_unread
-        )
-        values (
-          $1::uuid, $2::uuid, $3::text, $4::text, $5::text, $6::text[], $7::text, $8::text[], $9::text, $10::text, $11::text, timezone('utc', now()), false
-        )
-        returning id, mail_account_id as account_id, thread_id, subject, preview, body_text, received_at, is_unread, from_name, from_email, to_emails
-      `,
-      [
-        row.mail_account_id,
-        row.thread_id,
-        send.messageId || `SMTP:${Date.now()}`,
-        send.messageId || null,
-        row.message_id_header || null,
-        referenceHeaders,
-        credentials.email,
-        toEmails,
-        subject,
-        toPreview(outgoingBody),
-        outgoingBody
-      ]
-    );
+  const toEmails = input.to
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-    return result.rows[0] ? mapMessageRow(result.rows[0]) : undefined;
-  } catch (error) {
-    await insertSendLog({
-      accountId: row.mail_account_id,
-      threadId: row.thread_id,
-      toEmails,
-      subject,
-      bodyText: outgoingBody,
-      status: "failed",
-      errorMessage: error instanceof Error ? error.message : "SMTP send failed."
-    });
-    throw error;
+  if (toEmails.length === 0) {
+    throw new Error("At least one recipient is required.");
   }
+
+  const subject = input.subject.trim() || "(no subject)";
+  const threadKey = `outbound:${account.email.toLowerCase()}:${toEmails.join(",").toLowerCase()}:${subject.toLowerCase()}`;
+  const threadId = await ensureThread(input.accountId, threadKey, subject, new Date().toISOString());
+  return sendOutboundMessage({
+    userId: input.userId,
+    accountId: input.accountId,
+    threadId,
+    toEmails,
+    subject,
+    bodyText: input.bodyText
+  });
 }

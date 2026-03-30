@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const protectedPath =
+    request.nextUrl.pathname.startsWith("/compose") ||
     request.nextUrl.pathname.startsWith("/inbox") ||
     request.nextUrl.pathname.startsWith("/accounts") ||
     request.nextUrl.pathname.startsWith("/api/accounts") ||
@@ -61,5 +62,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/auth/:path*", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
+  matcher: ["/", "/login", "/auth/:path*", "/compose/:path*", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
 };
