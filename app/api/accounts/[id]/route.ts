@@ -62,17 +62,9 @@ export async function PATCH(request: Request, context: Context) {
       (payload.imapHost?.trim() && payload.imapHost.trim() !== existing.imapHost) ||
       (payload.imapPort !== undefined && Number(payload.imapPort) !== existing.imapPort) ||
       (payload.smtpHost?.trim() && payload.smtpHost.trim() !== existing.smtpHost) ||
-      (payload.smtpPort !== undefined && Number(payload.smtpPort) !== existing.smtpPort) ||
-      payload.password !== undefined;
+      (payload.smtpPort !== undefined && Number(payload.smtpPort) !== existing.smtpPort);
 
-    if (connectionChanged) {
-      if (!payload.password?.trim()) {
-        return NextResponse.json(
-          { error: "Enter the mailbox password to validate connection changes before saving." },
-          { status: 400 }
-        );
-      }
-
+    if (connectionChanged && payload.password?.trim()) {
       const connectionResult = await testMailConnection({
         email: payload.email?.trim() || existing.email,
         password: payload.password,

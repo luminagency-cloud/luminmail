@@ -31,6 +31,7 @@ If you created mailbox accounts before encrypted password storage was added, re-
 7. Sign in with the correct password.
 8. Sign in once with a wrong password and confirm the error stays inline and readable.
 9. Open a fresh browser tab after signing in and confirm the session persists without forcing a new login.
+10. Use `Send reset email`, open the newest recovery email, set a new password on `/reset-password`, and confirm you can sign in with it.
 
 ## Account creation validation
 
@@ -47,8 +48,8 @@ If you created mailbox accounts before encrypted password storage was added, re-
 2. Confirm the name changes without forcing connection revalidation.
 3. Add or update the account signature and confirm it saves.
 4. Change the check frequency and confirm it saves.
-5. Edit a connection field without entering a password and confirm the UI blocks the save.
-6. Edit a connection field with the password and confirm IMAP/SMTP validation runs before save.
+5. Edit a connection field without entering a password and confirm it saves.
+6. Enter a new mailbox password and confirm IMAP/SMTP validation runs before save.
 7. Delete an account and confirm it disappears from `/accounts` and the inbox switcher.
 
 ## Inbox sync

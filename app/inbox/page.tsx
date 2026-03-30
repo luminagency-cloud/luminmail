@@ -245,9 +245,6 @@ export default function InboxPage() {
           <Link className="buttonLink secondaryButton" href="/accounts">
             Manage accounts
           </Link>
-          <Link className="buttonLink" href={activeAccountId ? `/compose?accountId=${encodeURIComponent(activeAccountId)}` : "/compose"}>
-            New email
-          </Link>
           <button className="secondaryButton" onClick={() => setShowIssueForm((current) => !current)} type="button">
             {showIssueForm ? "Close issue report" : "Report an issue"}
           </button>
@@ -299,10 +296,15 @@ export default function InboxPage() {
       <section className="grid inboxGrid">
         <div className="panel messageListPanel">
           <div className="messagePanelHeader">
-            <h2>Messages</h2>
-            <p className="muted">
-              {loadingMessages ? "Refreshing..." : `${messages.length} loaded`} {activeAccount ? `• every ${activeAccount.syncIntervalMinutes} min` : ""}
-            </p>
+            <div className="stack-sm">
+              <h2>Messages</h2>
+              <p className="muted">
+                {loadingMessages ? "Refreshing..." : `${messages.length} loaded`} {activeAccount ? `• every ${activeAccount.syncIntervalMinutes} min` : ""}
+              </p>
+            </div>
+            <Link className="buttonLink compactButton" href={activeAccountId ? `/compose?accountId=${encodeURIComponent(activeAccountId)}` : "/compose"}>
+              New email
+            </Link>
           </div>
           <div className="messageListScroll">
             {messages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}

@@ -273,7 +273,7 @@ export default function AccountsPage() {
             <input
               id="new-account-password"
               onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-              placeholder="Password used for connection testing"
+              placeholder="Mailbox password to store and validate"
               type="password"
               value={draft.password}
             />
@@ -452,16 +452,17 @@ function AccountEditor({
         </div>
         <div className="stack-sm formGridFull">
           <label className="fieldLabel" htmlFor={`${account.id}-password`}>
-            Password
+            New mailbox password
           </label>
           <input
             disabled={account.source === "env"}
             id={`${account.id}-password`}
             onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-            placeholder={account.passwordStored ? "Password already stored" : "Enter password to store"}
+            placeholder={account.passwordStored ? "Leave blank unless the mailbox password changed" : "Enter mailbox password to store"}
             type="password"
             value={draft.password}
           />
+          <p className="muted">Server settings can be edited directly. Only enter a password here if the mailbox password changed and you want to revalidate it.</p>
         </div>
       </div>
       <div className="actions">

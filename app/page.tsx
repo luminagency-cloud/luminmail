@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { resendConfirmationAction, signInAction, signUpAction } from "@/app/login/actions";
+import { requestPasswordResetAction, resendConfirmationAction, signInAction, signUpAction } from "@/app/login/actions";
 import { getCurrentUser } from "@/lib/server/auth";
 import { hasSupabasePublicEnv } from "@/lib/supabase/env";
 
@@ -12,6 +12,8 @@ function normalizeAuthMessage(message: string | undefined) {
   if (lower.includes("email not confirmed")) return "Check your inbox and confirm your account before signing in.";
   if (lower.includes("expired")) return "That link expired. Request a fresh confirmation email and use the newest message.";
   if (lower.includes("otp")) return "That confirmation link is invalid or expired. Request a new one.";
+  if (lower.includes("same password")) return "Choose a different password from your current one.";
+  if (lower.includes("password")) return "There was a password problem. Double-check the reset link or request a new one.";
   return message;
 }
 
@@ -82,6 +84,17 @@ export default async function HomePage({
             <input name="email" placeholder="you@example.com" type="email" />
             <button className="secondaryButton" type="submit">
               Resend confirmation
+            </button>
+          </div>
+        </form>
+
+        <form action={requestPasswordResetAction} className="authPanel stack-sm">
+          <p className="eyebrow">Password reset</p>
+          <p className="muted">Forgot your password? We can send a reset link to your inbox.</p>
+          <div className="inlineForm">
+            <input name="email" placeholder="you@example.com" type="email" />
+            <button className="secondaryButton" type="submit">
+              Send reset email
             </button>
           </div>
         </form>

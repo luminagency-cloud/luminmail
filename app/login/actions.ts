@@ -131,6 +131,80 @@ export async function resendConfirmationAction(formData: FormData) {
   );
 }
 
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!email) {
+    redirect(`/?error=${encodeURIComponent("Enter your email address to reset your password.")}`);
+  }
+
+  try {
+    const appUrl = await getAppUrl();
+    const supabase = await getSupabaseServerClient();
+    const url = new URL("/auth/callback", appUrl);
+    url.searchParams.set("next", "/reset-password");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: url.toString()
+    });
+
+    if (error) {
+      redirect(`/?error=${encodeURIComponent(error.message)}`);
+    }
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    await logAppEvent({
+      scope: "auth.request_password_reset.unhandled",
+      message: error instanceof Error ? error.message : "Unhandled password reset request failure",
+      level: "error",
+      details: { email, error }
+    });
+    redirect(`/?error=${encodeURIComponent("Password reset failed unexpectedly. Check runtime logs.")}`);
+  }
+
+  redirect(`/?message=${encodeURIComponent("Password reset email sent. Open the newest message and use that link.")}`);
+}
+
+export async function updatePasswordAction(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (password.length < 8) {
+    redirect(`/reset-password?error=${encodeURIComponent("Use at least 8 characters for the new password.")}`);
+  }
+
+  if (password !== confirmPassword) {
+    redirect(`/reset-password?error=${encodeURIComponent("The new password and confirmation do not match.")}`);
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+    }
+
+    await supabase.auth.signOut();
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    await logAppEvent({
+      scope: "auth.update_password.unhandled",
+      message: error instanceof Error ? error.message : "Unhandled password update failure",
+      level: "error",
+      details: { error }
+    });
+    redirect(`/reset-password?error=${encodeURIComponent("Password update failed unexpectedly. Check runtime logs.")}`);
+  }
+
+  redirect(`/?message=${encodeURIComponent("Password updated. Sign in with your new password.")}`);
+}
+
 export async function signOutAction() {
   try {
     const supabase = await getSupabaseServerClient();

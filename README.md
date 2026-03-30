@@ -8,13 +8,17 @@ Built now:
 - Supabase Auth sign-in/sign-up flow on `/`
 - Supabase confirmation callback flow on `/auth/callback`
 - Inline resend-confirmation flow on `/`
+- Inline password-reset request flow on `/`
+- Password update flow on `/reset-password`
 - Protected app shell for `/inbox`, `/accounts`, and related APIs
 - App-level `public.users` records resolved from Supabase Auth users
 - DB-backed mail account records stored in Supabase and owned by `public.users.id`
 - Mailbox passwords encrypted server-side before database storage
 - Direct Postgres path for app-user, account, message, and error-log writes
 - Account switcher plus editable account names and mailbox host settings
-- Account create/update validates IMAP and SMTP before saving
+- Account creation validates IMAP and SMTP before saving
+- Account server settings can be edited without re-entering the mailbox password
+- Account update revalidates IMAP and SMTP when a new mailbox password is supplied
 - Optional per-account reply signature
 - Inbox message list backed by live IMAP header sync into `messages` and `threads`
 - Reply/send uses the connected account's SMTP credentials
@@ -56,7 +60,7 @@ When the `DEV_MAIL_ACCOUNT_*` variables are present, the app loads that mailbox 
 4. Create your first auth user from the app at `/` or in the Supabase Auth dashboard.
 5. If you ran an older version of the schema already, rerun the latest migration so `public.users` and the `mail_accounts.user_id` ownership model are created.
 6. In Supabase Auth URL Configuration, add your deployed app URL as the Site URL and add both your deployed `/auth/callback` URL and local `http://localhost:3000/auth/callback` as redirect URLs.
-7. If email confirmation is enabled, confirm the Supabase email template uses the callback URL path and that the redirect URLs above are allowed.
+7. If email confirmation or password recovery is enabled, confirm the Supabase email templates use the callback URL path and that the redirect URLs above are allowed.
 
 Going forward, treat `supabase/migrations/*.sql` as the source of truth for DB changes and `docs/schema.md` as the readable model reference.
 
