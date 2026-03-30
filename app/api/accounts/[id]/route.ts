@@ -29,6 +29,7 @@ export async function PATCH(request: Request, context: Context) {
     smtpHost?: string;
     smtpPort?: number;
     signature?: string;
+    syncIntervalMinutes?: number;
     password?: string;
   };
 
@@ -39,6 +40,8 @@ export async function PATCH(request: Request, context: Context) {
     payload.imapPort === undefined &&
     !payload.smtpHost?.trim() &&
     payload.smtpPort === undefined &&
+    payload.signature === undefined &&
+    payload.syncIntervalMinutes === undefined &&
     payload.password === undefined
   ) {
     return NextResponse.json(

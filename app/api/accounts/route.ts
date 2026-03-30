@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     smtpHost?: string;
     smtpPort?: number;
     signature?: string;
+    syncIntervalMinutes?: number;
     password?: string;
   };
 
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
         smtpHost: payload.smtpHost,
         smtpPort: Number(payload.smtpPort) || 587,
         signature: payload.signature ?? "",
+        syncIntervalMinutes: Number(payload.syncIntervalMinutes) || 15,
         password: payload.password
       });
 

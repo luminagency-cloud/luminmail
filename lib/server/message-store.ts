@@ -444,8 +444,6 @@ export async function listMessages(userId: string, accountId?: string): Promise<
     return [];
   }
 
-  await syncInboxHeaders(userId, accountId);
-
   const result = await dbQuery<MessageRow>(
     `
       select

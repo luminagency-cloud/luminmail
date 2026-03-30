@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { requireAppUser } from "@/lib/server/auth";
-import { listMessages } from "@/lib/server/message-store";
+import { listMessages, syncInboxHeaders } from "@/lib/server/message-store";
 import { logAppEvent } from "@/lib/server/error-log";
 
 export async function GET(request: Request) {
@@ -14,6 +14,12 @@ export async function GET(request: Request) {
     const { appUser } = await requireAppUser();
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("accountId") ?? undefined;
+    const shouldSync = searchParams.get("sync") === "1";
+
+    if (accountId && shouldSync) {
+      await syncInboxHeaders(appUser.id, accountId);
+    }
+
     return NextResponse.json({ messages: await listMessages(appUser.id, accountId) });
   } catch (error) {
     await logAppEvent({

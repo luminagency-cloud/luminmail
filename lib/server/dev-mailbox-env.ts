@@ -25,6 +25,7 @@ export function getEnvBackedAccount(): MailAccount | null {
     smtpHost,
     smtpPort: readNumberEnv("DEV_MAIL_ACCOUNT_SMTP_PORT", 587),
     signature: process.env.DEV_MAIL_ACCOUNT_SIGNATURE ?? "",
+    syncIntervalMinutes: readNumberEnv("DEV_MAIL_ACCOUNT_SYNC_INTERVAL_MINUTES", 15),
     passwordStored: true,
     source: "env"
   };

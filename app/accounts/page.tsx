@@ -15,6 +15,7 @@ type AccountDraft = {
   smtpHost: string;
   smtpPort: string;
   signature: string;
+  syncIntervalMinutes: string;
   password: string;
 };
 
@@ -26,6 +27,7 @@ const emptyDraft: AccountDraft = {
   smtpHost: "",
   smtpPort: "587",
   signature: "",
+  syncIntervalMinutes: "15",
   password: ""
 };
 
@@ -74,6 +76,7 @@ export default function AccountsPage() {
         smtpHost: draft.smtpHost,
         smtpPort: Number(draft.smtpPort),
         signature: draft.signature,
+        syncIntervalMinutes: Number(draft.syncIntervalMinutes) || 15,
         password: draft.password
       })
     });
@@ -112,6 +115,7 @@ export default function AccountsPage() {
         smtpHost: account.smtpHost,
         smtpPort: Number(account.smtpPort),
         signature: account.signature,
+        syncIntervalMinutes: Number(account.syncIntervalMinutes) || 15,
         password: account.password
       })
     });
@@ -246,6 +250,22 @@ export default function AccountsPage() {
               value={draft.signature}
             />
           </div>
+          <div className="stack-sm">
+            <label className="fieldLabel" htmlFor="new-account-sync-interval">
+              Check frequency
+            </label>
+            <select
+              id="new-account-sync-interval"
+              onChange={(event) => setDraft((current) => ({ ...current, syncIntervalMinutes: event.target.value }))}
+              value={draft.syncIntervalMinutes}
+            >
+              <option value="5">Every 5 minutes</option>
+              <option value="15">Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+              <option value="60">Every hour</option>
+            </select>
+            <p className="muted">Polling only runs while this inbox is open in the app.</p>
+          </div>
           <div className="stack-sm formGridFull">
             <label className="fieldLabel" htmlFor="new-account-password">
               Password
@@ -306,6 +326,7 @@ function AccountEditor({
     smtpHost: account.smtpHost,
     smtpPort: String(account.smtpPort),
     signature: account.signature,
+    syncIntervalMinutes: String(account.syncIntervalMinutes),
     password: ""
   });
 
@@ -318,6 +339,7 @@ function AccountEditor({
       smtpHost: account.smtpHost,
       smtpPort: String(account.smtpPort),
       signature: account.signature,
+      syncIntervalMinutes: String(account.syncIntervalMinutes),
       password: ""
     });
   }, [account]);
@@ -410,6 +432,23 @@ function AccountEditor({
             rows={4}
             value={draft.signature}
           />
+        </div>
+        <div className="stack-sm">
+          <label className="fieldLabel" htmlFor={`${account.id}-sync-interval`}>
+            Check frequency
+          </label>
+          <select
+            disabled={account.source === "env"}
+            id={`${account.id}-sync-interval`}
+            onChange={(event) => setDraft((current) => ({ ...current, syncIntervalMinutes: event.target.value }))}
+            value={draft.syncIntervalMinutes}
+          >
+            <option value="5">Every 5 minutes</option>
+            <option value="15">Every 15 minutes</option>
+            <option value="30">Every 30 minutes</option>
+            <option value="60">Every hour</option>
+          </select>
+          <p className="muted">Only checked while the inbox page is open for this account.</p>
         </div>
         <div className="stack-sm formGridFull">
           <label className="fieldLabel" htmlFor={`${account.id}-password`}>

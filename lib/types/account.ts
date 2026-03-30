@@ -7,6 +7,7 @@ export type MailAccount = {
   smtpHost: string;
   smtpPort: number;
   signature: string;
+  syncIntervalMinutes: number;
   passwordStored: boolean;
   source: "manual" | "env";
 };

@@ -19,7 +19,6 @@ Built now:
 - Inbox message list backed by live IMAP header sync into `messages` and `threads`
 - Reply/send uses the connected account's SMTP credentials
 - Message delete attempts provider-side IMAP move-to-trash before removing local cache
-- Background mailbox sync route exists for cron-driven refreshes across all stored mail accounts
 - SMTP attempts are persisted to `public.send_log`
 - Mail sync progress is tracked in `public.sync_state`
 - Folder metadata is discovered from IMAP and used for trash-folder targeting
@@ -53,7 +52,7 @@ When the `DEV_MAIL_ACCOUNT_*` variables are present, the app loads that mailbox 
 
 1. Create a Supabase project.
 2. Open the SQL editor and run the latest migration in `supabase/migrations/`.
-3. Copy the project URL, anon key, service role key, server-side Postgres connection string, `MAIL_SECRET_KEY`, and `MAIL_SYNC_CRON_TOKEN` into `.env.local`.
+3. Copy the project URL, anon key, service role key, server-side Postgres connection string, and `MAIL_SECRET_KEY` into `.env.local`.
 4. Create your first auth user from the app at `/` or in the Supabase Auth dashboard.
 5. If you ran an older version of the schema already, rerun the latest migration so `public.users` and the `mail_accounts.user_id` ownership model are created.
 6. In Supabase Auth URL Configuration, add your deployed app URL as the Site URL and add both your deployed `/auth/callback` URL and local `http://localhost:3000/auth/callback` as redirect URLs.
@@ -65,28 +64,27 @@ For backend writes and logging, prefer `SUPABASE_DB_URL` so server operations do
 
 `MAIL_SECRET_KEY` is a server-only encryption secret for stored mailbox passwords. Keep it identical across local and production. If you change it later without re-encrypting saved credentials, existing mailbox passwords become unreadable.
 
-## Vercel setup
+## Deployment setup
 
 1. Create a Vercel project from this repo.
-2. Add the same environment variables from `.env.local` into the Vercel project settings, including `SUPABASE_DB_URL`, `MAIL_SECRET_KEY`, and either `CRON_SECRET` or `MAIL_SYNC_CRON_TOKEN`.
+2. Add the same environment variables from `.env.local` into the Vercel project settings, including `SUPABASE_DB_URL` and `MAIL_SECRET_KEY`.
 3. For production, do not use `DEV_MAIL_ACCOUNT_*`; those are for local development only.
 
 ## Sync behavior today
 
-- Opening an inbox can trigger an on-demand IMAP sync for the selected account.
-- The Vercel cron route is a global background sync. Each run iterates through every stored mail account in the database, not just the active user.
-- The current cron is best treated as a prototype "keep inboxes warm" mechanism, not a final per-user sync scheduler.
+- Opening an inbox triggers an immediate IMAP sync for the selected account.
+- While the inbox page stays open, the active account is polled again on its configured interval.
+- Sync only runs for the currently open mailbox view. There is no app-wide background scheduler now.
 
 ## Future sync direction
 
-- Move sync fan-out into a worker-safe job model instead of one global route run.
 - Add overlap protection so the same account is not synced concurrently.
-- Add a user-facing sync preference so "how often to check email" becomes an account or user setting instead of a single app-wide cron schedule.
+- Expand sync settings beyond the current fixed interval choices if users need finer control.
+- Add folder-level sync beyond `INBOX`.
 
 ## Next recommended build steps
 
-1. Add folder-level sync beyond `INBOX`.
-2. Add overlap protection so the same account is not synced concurrently.
-3. Turn sync frequency into a user/account setting instead of a single app-wide cron schedule.
-4. Surface `send_log` and `sync_state` in the UI for debugging.
-5. Add RLS policies and secret-handling hardening.
+1. Add overlap protection so the same account is not synced concurrently.
+2. Surface `send_log` and `sync_state` in the UI for debugging.
+3. Add folder-level sync beyond `INBOX`.
+4. Add RLS policies and secret-handling hardening.

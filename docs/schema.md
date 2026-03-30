@@ -52,6 +52,7 @@ Important columns:
 - `smtp_host`
 - `smtp_port`
 - `signature`
+- `sync_interval_minutes`
 - `encrypted_secret`
 - `secret_iv`
 - `provider`
@@ -63,6 +64,7 @@ Notes:
 - One app user can own many mail accounts.
 - `encrypted_secret` and `secret_iv` store the encrypted mailbox password and IV used for IMAP/SMTP operations.
 - `signature` is the optional plain-text footer appended to outgoing replies for that mailbox.
+- `sync_interval_minutes` stores the inbox polling cadence used while that mailbox is open in the app.
 
 ### `public.mail_folders`
 

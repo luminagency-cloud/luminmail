@@ -25,6 +25,7 @@ export default function InboxPage() {
   const [issueSubmitting, setIssueSubmitting] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [issueMessage, setIssueMessage] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const readingPaneRef = useRef<HTMLDivElement | null>(null);
   const replyBoxRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -42,15 +43,53 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => {
-    async function loadMessages() {
+    async function loadMessages(sync: boolean) {
       if (!activeAccountId) {
         setMessages([]);
         setSelectedId("");
         return;
       }
 
-      const res = await fetch(`/api/messages?accountId=${encodeURIComponent(activeAccountId)}`);
-      if (!res.ok) return;
+      setLoadingMessages(true);
+      try {
+        const res = await fetch(
+          `/api/messages?accountId=${encodeURIComponent(activeAccountId)}${sync ? "&sync=1" : ""}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+
+        const payload = (await res.json()) as MessagesResponse;
+        setMessages(payload.messages);
+        setSelectedId((current) => {
+          if (current && payload.messages.some((message) => message.id === current)) return current;
+          return payload.messages[0]?.id ?? "";
+        });
+      } finally {
+        setLoadingMessages(false);
+      }
+    }
+
+    void loadMessages(true);
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    if (!activeAccountId) return;
+
+    const active = accounts.find((account) => account.id === activeAccountId);
+    if (!active) return;
+
+    const intervalMs = active.syncIntervalMinutes * 60 * 1000;
+    if (!Number.isFinite(intervalMs) || intervalMs < 60_000) return;
+
+    let cancelled = false;
+
+    async function poll() {
+      if (cancelled || document.visibilityState !== "visible") return;
+
+      const res = await fetch(`/api/messages?accountId=${encodeURIComponent(activeAccountId)}&sync=1`, {
+        cache: "no-store"
+      });
+      if (!res.ok || cancelled) return;
 
       const payload = (await res.json()) as MessagesResponse;
       setMessages(payload.messages);
@@ -60,8 +99,23 @@ export default function InboxPage() {
       });
     }
 
-    void loadMessages();
-  }, [activeAccountId]);
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void poll();
+      }
+    }
+
+    const timer = window.setInterval(() => {
+      void poll();
+    }, intervalMs);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [accounts, activeAccountId]);
 
   const selected = messages.find((message) => message.id === selectedId);
   const activeAccount = accounts.find((account) => account.id === activeAccountId);
@@ -242,7 +296,9 @@ export default function InboxPage() {
         <div className="panel messageListPanel">
           <div className="messagePanelHeader">
             <h2>Messages</h2>
-            <p className="muted">{messages.length} loaded</p>
+            <p className="muted">
+              {loadingMessages ? "Refreshing..." : `${messages.length} loaded`} {activeAccount ? `• every ${activeAccount.syncIntervalMinutes} min` : ""}
+            </p>
           </div>
           <div className="messageListScroll">
             {messages.length === 0 ? <p className="muted">No messages in this account yet.</p> : null}

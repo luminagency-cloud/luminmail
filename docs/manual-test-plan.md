@@ -6,6 +6,7 @@ Latest required migrations for this plan:
 
 - `supabase/migrations/20260329_0003_mail_account_signature.sql`
 - `supabase/migrations/20260329_0004_issue_reports.sql`
+- `supabase/migrations/20260330_0005_mail_account_sync_interval.sql`
 
 ## Before you start
 
@@ -16,9 +17,6 @@ Confirm these environment variables exist in both local and Vercel:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_DB_URL`
 - `MAIL_SECRET_KEY`
-- `MAIL_SYNC_CRON_TOKEN`
-
-If you use Vercel Cron, `CRON_SECRET` may be used instead of `MAIL_SYNC_CRON_TOKEN`.
 
 If you created mailbox accounts before encrypted password storage was added, re-save each account with its password or delete and recreate it before testing sync, reply, or delete.
 
@@ -48,9 +46,10 @@ If you created mailbox accounts before encrypted password storage was added, re-
 1. Edit only the display name and save.
 2. Confirm the name changes without forcing connection revalidation.
 3. Add or update the account signature and confirm it saves.
-4. Edit a connection field without entering a password and confirm the UI blocks the save.
-5. Edit a connection field with the password and confirm IMAP/SMTP validation runs before save.
-6. Delete an account and confirm it disappears from `/accounts` and the inbox switcher.
+4. Change the check frequency and confirm it saves.
+5. Edit a connection field without entering a password and confirm the UI blocks the save.
+6. Edit a connection field with the password and confirm IMAP/SMTP validation runs before save.
+7. Delete an account and confirm it disappears from `/accounts` and the inbox switcher.
 
 ## Inbox sync
 
@@ -79,14 +78,13 @@ If you created mailbox accounts before encrypted password storage was added, re-
 6. Confirm both rows appear in `public.issue_reports`.
 7. Confirm the screenshot row stores `screenshot_name`, `screenshot_content_type`, and non-null `screenshot_bytes`.
 
-## Background sync route
+## Polling sync behavior
 
-1. Send a `GET` or `POST` request to `/api/messages/sync` with header `Authorization: Bearer <CRON_SECRET or MAIL_SYNC_CRON_TOKEN>`.
-2. Confirm the route returns `200`.
-3. Confirm runtime logs show a completed sync event.
-4. Confirm `public.sync_state` has `last_synced_at`, `uid_validity`, and `last_seen_uid` populated for the inbox folder.
-5. Confirm a request without the token returns `401`.
-6. Remember that one route call currently fans out across every stored mail account in the database, not just the current user.
+1. Open `/inbox` for a valid account.
+2. Confirm the first load triggers a sync and recent messages appear.
+3. Leave the inbox open past the configured interval and confirm the message list refreshes again automatically.
+4. Switch to a different account with a different interval and confirm the polling cadence changes.
+5. Confirm `public.sync_state` has `last_synced_at`, `uid_validity`, and `last_seen_uid` populated for the inbox folder.
 
 ## Known caveat to watch
 
