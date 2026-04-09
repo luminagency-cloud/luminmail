@@ -9,7 +9,7 @@ export default function AboutPage() {
           <p className="eyebrow">About</p>
           <h1>LuminMail</h1>
           <p className="muted">
-            Minimal webmail prototype with Supabase auth, IMAP-backed sync, SMTP sending, and account-level mailbox
+            Minimal webmail prototype with app-managed auth, IMAP-backed sync, SMTP sending, and account-level mailbox
             management.
           </p>
         </div>

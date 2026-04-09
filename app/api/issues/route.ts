@@ -5,7 +5,7 @@ import { createIssueReport } from "@/lib/server/issue-report";
 
 export async function POST(request: Request) {
   try {
-    const { authUser, appUser } = await requireAppUser();
+    const { appUser } = await requireAppUser();
     const formData = await request.formData();
 
     const description = String(formData.get("description") || "").trim();
@@ -30,9 +30,9 @@ export async function POST(request: Request) {
     const accountId = accountIdValue || null;
     const report = await createIssueReport({
       userId: appUser.id,
-      authUserId: authUser.id,
+      authUserId: appUser.authUserId,
       accountId,
-      reporterEmail: authUser.email ?? "unknown-user",
+      reporterEmail: appUser.email ?? "unknown-user",
       pageRoute,
       description,
       screenshot

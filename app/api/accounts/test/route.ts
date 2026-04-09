@@ -5,7 +5,7 @@ import { testMailConnection } from "@/lib/server/mail-connection";
 
 export async function POST(request: Request) {
   try {
-    const { authUser, appUser } = await requireAppUser();
+    const { appUser } = await requireAppUser();
     const payload = (await request.json()) as {
       email?: string;
       password?: string;
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       scope: "accounts.test_connection",
       level: result.imap.ok && result.smtp.ok ? "info" : "warn",
       message: result.imap.ok && result.smtp.ok ? "Mailbox connection test passed." : "Mailbox connection test failed.",
-      authUserId: authUser.id,
+      authUserId: appUser.authUserId,
       appUserId: appUser.id,
       details: result
     });

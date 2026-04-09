@@ -1,25 +1,16 @@
 import Link from "next/link";
 import { updatePasswordAction } from "@/app/login/actions";
-import { getCurrentUser } from "@/lib/server/auth";
-
-function normalizeResetMessage(message: string | undefined) {
-  if (!message) return null;
-
-  const lower = message.toLowerCase();
-  if (lower.includes("auth session missing")) return "That reset link is no longer valid. Request a fresh password reset email.";
-  if (lower.includes("expired")) return "That reset link expired. Request a new password reset email.";
-  if (lower.includes("same password")) return "Choose a different password from your current one.";
-  return message;
-}
+import { normalizeAuthMessage, verifyPasswordResetToken } from "@/lib/server/auth";
 
 export default async function ResetPasswordPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; token?: string }>;
 }) {
   const params = await searchParams;
-  const error = normalizeResetMessage(params.error);
-  const user = await getCurrentUser();
+  const error = normalizeAuthMessage(params.error);
+  const token = String(params.token ?? "");
+  const user = token ? await verifyPasswordResetToken(token) : null;
 
   return (
     <main className="container authShell">
@@ -35,6 +26,7 @@ export default async function ResetPasswordPage({
 
         {user ? (
           <form action={updatePasswordAction} className="authPanel stack-md compactPanel">
+            <input name="token" type="hidden" value={token} />
             <div className="stack-sm">
               <label className="fieldLabel" htmlFor="new-password">
                 New password
@@ -56,7 +48,7 @@ export default async function ResetPasswordPage({
           </form>
         ) : (
           <section className="authPanel stack-md compactPanel">
-            <p className="muted">There is no active recovery session right now. Request a new password reset email and use the newest link.</p>
+            <p className="muted">There is no valid recovery link right now. Request a new password reset email and use the newest link.</p>
             <div className="actions">
               <Link className="buttonLink secondaryButton" href="/">
                 Back to sign in

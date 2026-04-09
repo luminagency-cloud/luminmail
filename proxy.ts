@@ -1,34 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { hasSupabasePublicEnv } from "@/lib/supabase/env";
+const SESSION_COOKIE_NAME = "luminmail_session";
 
 export async function proxy(request: NextRequest) {
-  if (!hasSupabasePublicEnv()) {
-    return NextResponse.next({ request });
-  }
-
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        }
-      }
-    }
-  );
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const hasSession = Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value);
 
   const protectedPath =
     request.nextUrl.pathname.startsWith("/compose") ||
@@ -37,30 +11,30 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/accounts") ||
     request.nextUrl.pathname.startsWith("/api/messages");
 
-  if (!user && protectedPath) {
+  if (!hasSession && protectedPath) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/";
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && request.nextUrl.pathname === "/login") {
+  if (hasSession && request.nextUrl.pathname === "/login") {
     const inboxUrl = request.nextUrl.clone();
     inboxUrl.pathname = "/inbox";
     inboxUrl.search = "";
     return NextResponse.redirect(inboxUrl);
   }
 
-  if (user && request.nextUrl.pathname === "/") {
+  if (hasSession && request.nextUrl.pathname === "/") {
     const inboxUrl = request.nextUrl.clone();
     inboxUrl.pathname = "/inbox";
     inboxUrl.search = "";
     return NextResponse.redirect(inboxUrl);
   }
 
-  return response;
+  return NextResponse.next({ request });
 }
 
 export const config = {
-  matcher: ["/", "/login", "/auth/:path*", "/compose/:path*", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
+  matcher: ["/", "/login", "/compose/:path*", "/inbox/:path*", "/accounts/:path*", "/api/accounts/:path*", "/api/messages/:path*"]
 };

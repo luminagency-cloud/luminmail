@@ -3,22 +3,20 @@
 This document is the human-readable reference for the current data model.
 
 Use this file to understand the intent of the schema.
-Use `supabase/migrations/*.sql` to change the database.
+Use the tracked SQL bootstrap or your database migration workflow to change the database.
 
 ## Ownership model
 
-LuminMail uses a two-layer user model:
+LuminMail uses an application-owned user model:
 
-- `auth.users`
-  Managed by Supabase Auth. This is only for authentication identity.
 - `public.users`
-  The application user record. All product data hangs off this layer.
+  The application user record. All product data hangs off this table.
 
 Mailbox ownership flows like this:
 
-`auth.users -> public.users -> public.mail_accounts`
+`public.users -> public.mail_accounts`
 
-That keeps app data separate from the auth provider and makes future auth changes, including Google/Gmail sign-in, much easier.
+That keeps app data separate from any external auth provider and leaves room for future Google/OAuth sign-in.
 
 ## Tables
 
@@ -28,15 +26,16 @@ Application-level users.
 
 Important columns:
 - `id`: primary key for app data
-- `auth_user_id`: unique link to `auth.users.id`
+- `auth_user_id`: optional future link to an external auth identity
 - `email`
 - `display_name`
+- `password_hash`
 - `created_at`
 - `updated_at`
 
 Notes:
-- A trigger mirrors newly created Supabase auth users into this table.
-- A backfill statement also creates `public.users` rows for existing auth users.
+- This table is the primary user store for the app.
+- `password_hash` stores the app-managed login credential for email/password auth.
 
 ### `public.mail_accounts`
 
@@ -195,26 +194,9 @@ Notes:
 
 Shared helper trigger function used to refresh `updated_at`.
 
-### `public.handle_auth_user_created()`
-
-Creates or updates the matching `public.users` row whenever a new `auth.users` record is inserted.
-
 ## Migration workflow
 
 Going forward:
 
-1. Do not keep extending one giant schema paste.
-2. Add a new file under `supabase/migrations/`.
-3. Keep this document updated with model intent and any structural changes.
-4. Only treat `supabase/schema.sql` as a convenience snapshot if we keep it around.
-
-## Current migration baseline
-
-The current baseline schema lives in:
-
-- `supabase/migrations/20260329_0001_baseline.sql`
-- `supabase/migrations/20260329_0002_sync_state_and_send_log_indexes.sql`
-- `supabase/migrations/20260329_0003_mail_account_signature.sql`
-- `supabase/migrations/20260329_0004_issue_reports.sql`
-
-Future schema changes should be incremental migration files after that.
+1. Keep this document updated with model intent and structural changes.
+2. Keep bootstrap and migration SQL aligned with the actual runtime schema.

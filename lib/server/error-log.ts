@@ -1,6 +1,4 @@
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { hasSupabaseServiceEnv } from "@/lib/supabase/env";
-import { dbQuery, hasDatabaseUrl } from "@/lib/db/server";
+import { dbQuery } from "@/lib/db/server";
 
 type LogLevel = "info" | "warn" | "error";
 
@@ -59,47 +57,21 @@ export async function logAppEvent(input: ErrorLogInput) {
   const serializedDetails = serializeDetails(input.details);
   writeRuntimeLog(input, serializedDetails);
 
-  if (hasDatabaseUrl()) {
-    try {
-      await dbQuery(
-        `
-          insert into public.app_error_logs (scope, level, message, auth_user_id, app_user_id, details)
-          values ($1::text, $2::text, $3::text, $4::uuid, $5::uuid, $6::jsonb)
-        `,
-        [
-          input.scope,
-          input.level ?? "error",
-          input.message,
-          input.authUserId ?? null,
-          input.appUserId ?? null,
-          serializedDetails ? JSON.stringify(serializedDetails) : null
-        ]
-      );
-      return;
-    } catch (error) {
-      console.error("[app:error] logging.persist_failed", {
-        scope: input.scope,
-        message: input.message,
-        persistError: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error
-      });
-      return;
-    }
-  }
-
-  if (!hasSupabaseServiceEnv()) {
-    return;
-  }
-
   try {
-    const supabase = getSupabaseAdminClient();
-    await supabase.from("app_error_logs").insert({
-      scope: input.scope,
-      level: input.level ?? "error",
-      message: input.message,
-      auth_user_id: input.authUserId ?? null,
-      app_user_id: input.appUserId ?? null,
-      details: serializedDetails
-    });
+    await dbQuery(
+      `
+        insert into public.app_error_logs (scope, level, message, auth_user_id, app_user_id, details)
+        values ($1::text, $2::text, $3::text, $4::uuid, $5::uuid, $6::jsonb)
+      `,
+      [
+        input.scope,
+        input.level ?? "error",
+        input.message,
+        input.authUserId ?? null,
+        input.appUserId ?? null,
+        serializedDetails ? JSON.stringify(serializedDetails) : null
+      ]
+    );
   } catch (error) {
     console.error("[app:error] logging.persist_failed", {
       scope: input.scope,

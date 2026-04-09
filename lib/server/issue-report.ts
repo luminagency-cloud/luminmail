@@ -23,7 +23,7 @@ type IssueReportRow = {
 
 export async function createIssueReport(input: IssueReportInsertInput) {
   if (!hasDatabaseUrl()) {
-    throw new Error("Missing SUPABASE_DB_URL for issue reports.");
+    throw new Error("Missing DATABASE_URL or POSTGRES_URL for issue reports.");
   }
 
   const screenshotValidationError = input.screenshot

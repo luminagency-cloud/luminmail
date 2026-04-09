@@ -6,7 +6,7 @@ declare global {
 }
 
 function getDatabaseUrl() {
-  return process.env.SUPABASE_DB_URL ?? process.env.POSTGRES_URL ?? null;
+  return process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? null;
 }
 
 export function hasDatabaseUrl() {
@@ -16,7 +16,7 @@ export function hasDatabaseUrl() {
 function getPool() {
   const connectionString = getDatabaseUrl();
   if (!connectionString) {
-    throw new Error("Missing SUPABASE_DB_URL for direct database access.");
+    throw new Error("Missing DATABASE_URL or POSTGRES_URL for direct database access.");
   }
 
   if (!global.__luminmailPgPool) {

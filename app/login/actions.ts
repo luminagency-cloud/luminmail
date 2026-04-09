@@ -2,23 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { getAppUrl } from "@/lib/server/app-url";
+import {
+  requestPasswordReset,
+  resetPasswordWithToken,
+  sanitizeNextPath,
+  signInWithPassword,
+  signOutCurrentSession,
+  registerUser
+} from "@/lib/server/auth";
 import { logAppEvent } from "@/lib/server/error-log";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-function sanitizeNextPath(next: string | null | undefined) {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/inbox";
-  }
-
-  return next;
-}
-
-function getAuthRedirectUrl(appUrl: string, next: string) {
-  const url = new URL("/auth/callback", appUrl);
-  url.searchParams.set("next", next || "/inbox");
-  return url.toString();
-}
 
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -26,20 +18,19 @@ export async function signInAction(formData: FormData) {
   const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
 
   try {
-    const supabase = await getSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
-    }
+    await signInWithPassword(email, password);
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
     }
 
+    if (error instanceof Error) {
+      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    }
+
     await logAppEvent({
       scope: "auth.sign_in.unhandled",
-      message: error instanceof Error ? error.message : "Unhandled sign-in failure",
+      message: "Unhandled sign-in failure",
       level: "error",
       details: { email, error }
     });
@@ -54,81 +45,26 @@ export async function signUpAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
   try {
-    const appUrl = await getAppUrl();
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: getAuthRedirectUrl(appUrl, next)
-      }
-    });
-
-    if (error) {
-      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
-    }
-
-    if (data.session) {
-      redirect(next || "/inbox");
-    }
+    await registerUser({ email, password });
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
     }
 
+    if (error instanceof Error) {
+      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    }
+
     await logAppEvent({
       scope: "auth.sign_up.unhandled",
-      message: error instanceof Error ? error.message : "Unhandled sign-up failure",
+      message: "Unhandled sign-up failure",
       level: "error",
       details: { email, error }
     });
     redirect(`/?error=${encodeURIComponent("Sign-up failed unexpectedly. Check runtime logs.")}&next=${encodeURIComponent(next)}`);
   }
 
-  redirect(
-    `/?message=${encodeURIComponent("Check your inbox for a confirmation email from Supabase. The link will bring you back here and sign you in.")}&next=${encodeURIComponent(next)}`
-  );
-}
-
-export async function resendConfirmationAction(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const next = sanitizeNextPath(String(formData.get("next") ?? "/inbox"));
-
-  if (!email) {
-    redirect(`/?error=${encodeURIComponent("Enter your email address to resend the confirmation link.")}&next=${encodeURIComponent(next)}`);
-  }
-
-  try {
-    const appUrl = await getAppUrl();
-    const supabase = await getSupabaseServerClient();
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: {
-        emailRedirectTo: getAuthRedirectUrl(appUrl, next)
-      }
-    });
-
-    if (error) {
-      redirect(`/?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
-    }
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-
-    await logAppEvent({
-      scope: "auth.resend_confirmation.unhandled",
-      message: error instanceof Error ? error.message : "Unhandled resend confirmation failure",
-      level: "error",
-      details: { email, error }
-    });
-    redirect(`/?error=${encodeURIComponent("Resend failed unexpectedly. Check runtime logs.")}&next=${encodeURIComponent(next)}`);
-  }
-
-  redirect(
-    `/?message=${encodeURIComponent("Confirmation email re-sent. Use the newest email and open it promptly.")}&next=${encodeURIComponent(next)}`
-  );
+  redirect(next || "/inbox");
 }
 
 export async function requestPasswordResetAction(formData: FormData) {
@@ -139,18 +75,12 @@ export async function requestPasswordResetAction(formData: FormData) {
   }
 
   try {
-    const appUrl = await getAppUrl();
-    const supabase = await getSupabaseServerClient();
-    const url = new URL("/auth/callback", appUrl);
-    url.searchParams.set("next", "/reset-password");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: url.toString()
-    });
-
-    if (error) {
-      redirect(`/?error=${encodeURIComponent(error.message)}`);
-    }
+    const result = await requestPasswordReset(email);
+    const message =
+      result.delivery === "email"
+        ? "Password reset email sent. Open the newest message and use that link."
+        : "Password reset requested. If SMTP is not configured, the reset URL was logged on the server.";
+    redirect(`/?message=${encodeURIComponent(message)}`);
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -164,30 +94,23 @@ export async function requestPasswordResetAction(formData: FormData) {
     });
     redirect(`/?error=${encodeURIComponent("Password reset failed unexpectedly. Check runtime logs.")}`);
   }
-
-  redirect(`/?message=${encodeURIComponent("Password reset email sent. Open the newest message and use that link.")}`);
 }
 
 export async function updatePasswordAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
   if (password.length < 8) {
-    redirect(`/reset-password?error=${encodeURIComponent("Use at least 8 characters for the new password.")}`);
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent("Use at least 8 characters for the new password.")}`);
   }
 
   if (password !== confirmPassword) {
-    redirect(`/reset-password?error=${encodeURIComponent("The new password and confirmation do not match.")}`);
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent("The new password and confirmation do not match.")}`);
   }
 
   try {
-    const supabase = await getSupabaseServerClient();
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-      redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
-    }
-
-    await supabase.auth.signOut();
+    await resetPasswordWithToken(token, password);
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -197,9 +120,13 @@ export async function updatePasswordAction(formData: FormData) {
       scope: "auth.update_password.unhandled",
       message: error instanceof Error ? error.message : "Unhandled password update failure",
       level: "error",
-      details: { error }
+      details: { tokenPresent: Boolean(token), error }
     });
-    redirect(`/reset-password?error=${encodeURIComponent("Password update failed unexpectedly. Check runtime logs.")}`);
+    redirect(
+      `/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent(
+        error instanceof Error ? error.message : "Password update failed unexpectedly. Check runtime logs."
+      )}`
+    );
   }
 
   redirect(`/?message=${encodeURIComponent("Password updated. Sign in with your new password.")}`);
@@ -207,20 +134,7 @@ export async function updatePasswordAction(formData: FormData) {
 
 export async function signOutAction() {
   try {
-    const supabase = await getSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      await logAppEvent({
-        scope: "auth.sign_out",
-        message: error.message,
-        level: "warn",
-        authUserId: user?.id ?? null
-      });
-    }
+    await signOutCurrentSession();
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
